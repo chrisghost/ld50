@@ -1,0 +1,125 @@
+body {
+  font-family: 'Helvetica Neue', Verdana, Helvetica, Arial, sans-serif;
+  max-width: 600px;
+  margin: 0 auto;
+  padding-top: 72px;
+  -webkit-font-smoothing: antialiased;
+  font-size: 1.125em;
+  color: #333;
+  line-height: 1.5em;
+}
+
+h1, h2, h3 {
+  color: #000;
+}
+h1 {
+  font-size: 2.5em
+}
+
+h2 {
+  font-size: 2em
+}
+
+h3 {
+  font-size: 1.5em
+}
+
+a {
+  text-decoration: none;
+  color: #09f;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.black-bkg {
+  background-color: black;
+  color: white;
+}
+
+.game-main-screen {
+  padding: 15px;
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  padding-top: 30px;
+}
+
+.top-bar-stats {
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  height: 25px;
+  background-color: grey;
+}
+
+.top-bar-stats > div {
+  float: left;
+}
+
+.top-bar-stats .time {
+  width: 30%;
+}
+
+.top-bar-stats .time .progress {
+  width: 100%;
+  background-color: red;
+  height: 2px;
+  animation: 5s linear 0s infinite time-progress;
+}
+
+@keyframes time-progress { from { width: 0%; } to { width: 100%; }  }
+
+.top-bar-stats .time .progress.fill {
+}
+
+.top-bar-stats .bar-container {
+  background-color: black;
+  height: 20px;
+  padding: 2px;
+  width: 30%;
+
+  position: absolute;
+}
+
+.top-bar-stats .bar-container .bar-fill {
+  float:left;
+  height: 18px;
+  position: absolute;
+}
+
+.top-bar-stats .bar-container .bar-text {
+  line-height: 14px;
+  padding: 2px;
+  color: white;
+  height: 18px;
+  position: absolute;
+}
+
+.top-bar-stats .oxygen-bar-container {
+}
+
+.top-bar-stats .oxygen-bar-container .oxygen-bar-fill {
+  background-color: blue;
+}
+
+.top-bar-stats .hunger-bar-container {
+  right: 10px;
+}
+
+.top-bar-stats .hunger-bar-container .hunger-bar-fill {
+  background-color: red;
+}
+
+.activity {
+  border: 1px solid black;
+  width: 250px;
+}
+
+.activity.selected {
+  background-color: red;
+}
