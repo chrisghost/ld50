@@ -34,8 +34,10 @@ a:hover {
 }
 
 .black-bkg {
+  /*
   background-color: black;
   color: white;
+  */
 }
 
 .game-main-screen {
@@ -123,3 +125,47 @@ a:hover {
 .activity.selected {
   background-color: red;
 }
+
+table.resources {
+  border: 1px solid black;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+table.resources td {
+  border: 1px solid black;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+table.resources .rname {
+  text-align: left;
+}
+
+table.resources .rqty {
+  text-align: right;
+  float: right;
+}
+
+.bonuses-container {
+
+}
+
+.bonuses-container .bonus-container {
+  width: 30%;
+  background-color: red;
+  float:left;
+  padding: 4px;
+  border: 1px solid black;
+}
+
+.bonuses-container .bonus-container .bonus-label {
+  font-weight: bold;
+}
+
+.bonuses-container .bonus-container .bonus-description {
+}
+
+.bonuses-container .bonus-container button {
+}
+
