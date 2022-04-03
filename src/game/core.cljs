@@ -111,7 +111,11 @@
                    :level-max 100
                    :next-price (bonus-price-double-every-level-fn 30)
                    :bonus-value (fn [level] (* level 10))
-                   :bonus-apply (fn [state bvalue] nil)
+                   :bonus-apply (fn [state bvalue]
+                                  (swap! state
+                                         update-in
+                                         [:game :resources :water]
+                                         #(+ % bvalue)))
                    }
 
       :oxygen-qty  {
@@ -120,7 +124,11 @@
                    :level-max 20
                    :next-price (bonus-price-double-every-level-fn 25)
                    :bonus-value (fn [level] (* level 10))
-                   :bonus-apply (fn [state bvalue] nil)
+                   :bonus-apply (fn [state bvalue]
+                                  (swap! state
+                                         update-in
+                                         [:game :equipment :oxygen-tank :capacity]
+                                         #(+ % bvalue)))
                    }
       }
      }
@@ -132,10 +140,17 @@
 
 (defn reinit-resources []
   (swap! state assoc-in [:game :resources] (get-in base-state [:game :resources]))
+  (swap! state assoc-in [:game :hunger :current] 0)
+  (swap! state assoc-in [:game :time] 0)
   (doall
     (map
       (fn [[_ b]] ((:bonus-apply b) state ((:bonus-value b) (:level b))))
-      (:bonuses @state))))
+      (:bonuses @state)))
+  (swap! state
+         assoc-in
+         [:game :resources :oxygen]
+         (get-in @state [:game :equipment :oxygen-tank :capacity]))
+  )
 
 (defn launch-timer []
   (js/setTimeout
@@ -144,8 +159,6 @@
       (when-not (dead? state)
         (launch-timer)))
     5000))
-
-;(defonce timer (launch-timer))
 
 (defn start-mission [coins]
   (reinit-resources)
