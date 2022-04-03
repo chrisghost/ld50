@@ -252,6 +252,18 @@
                                                  ((get-in @state [:game :activities :make-electronics :price]) state)))
                     :available true
                     }
+
+                  :extract-water
+                   {
+                    :label "Extract water"
+                    :explain "the source of life!"
+                    :effect (fn [state]
+                                (swap! state update-in [:game :resources :water] #(+ % 10)) 
+                                {})
+                    :condition (fn [state]
+                                 (get-in @state [:game :buildings :water-extractor :built]))
+                    :available true
+                    }
     
       }
       :buildings {
@@ -263,24 +275,46 @@
                    :condition (fn [state]
                                 (has-resources? state {:stone 15 :metals 5}))
                    :effect (fn [state]
-                             (println "effect of water xtracv")
-                             (swap! state update-in [:game :resources :water] #(+ % 10))
+                             ;(swap! state update-in [:game :resources :water] #(+ % 10))
                              )
                    }
-                  :farm {
-                         :label "Potato farm"
-                         :price (fn [state] {:stone 30 :metals 5})
-                         :built true
-                         :condition (fn [state]
-                                      (has-resources? state {:stone 15 :metals 2}))
-                         :effect (fn [state]
-                                   (println "Apply potato farm")
-                                   (swap! state update-in [:game :buildings :farm :plants]
-                                          #(map (fn [p] (update p :time-left dec)) %))
-                                   )
-                         :max-plants 10
-                         :plants []
-                         }
+                  :farm
+                  {
+                   :label "Potato farm"
+                   :price (fn [state] {:stone 30 :metals 5})
+                   :built true
+                   :condition (fn [state]
+                                (has-resources? state {:stone 15 :metals 2}))
+                   :effect (fn [state]
+                             (println "Apply potato farm")
+                             (let [
+                                   ;water-needed
+                                   ;(count (filter #(pos? (:time-left %)) (get-in @state [:game :buildings :farm :plants])))
+                                   water-available (get-in @state [:game :resources :water])
+
+                                   update-plants-fn
+                                   (fn [acc p]
+                                     (if (and
+                                           (pos? (:water acc))
+                                           (pos? (:time-left p)))
+                                       {:water (dec (:water acc))
+                                        :plants (cons (update p :time-left dec) (:plants acc)) }
+                                       (update acc
+                                               :plants
+                                               #(cons p %))
+                                       ))
+
+                                   {:keys [water plants]}
+                                   (reduce update-plants-fn
+                                           {:water water-available :plants []}
+                                           (get-in @state [:game :buildings :farm :plants]))
+                                     ]
+                               (swap! state assoc-in [:game :buildings :farm :plants] plants)
+                               (swap! state assoc-in [:game :resources :water] water)
+                             ))
+                   :max-plants 10
+                   :plants []
+                   }
                   ;:laboratory {}
                   :craft-bench
                   {
