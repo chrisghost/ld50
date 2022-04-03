@@ -63,8 +63,8 @@
 
 (defn exploration-finds [state]
   (let [r (rand)
+        has-metal-detector (get-in @state [:game :craftable :metal-detector :crafted])
         depo (can-find-deposits state)
-        _ (println depo)
         stone-depo (if (and (> r 0.3) (:stone depo))
                      {:deposits {:stone 1 }}
                      {}
@@ -76,7 +76,10 @@
         stone (if (> r 0.4)
                 (int (* 20 (rand)))
                 0)
-        metals (if (> r 0.7)
+        metals (if (> r
+                      (if has-metal-detector
+                        0.5
+                        0.7))
                 (int (* 10 (rand)))
                 0)
         ]
@@ -164,11 +167,16 @@
                    {
                     :label "Mine stone"
                     :explain "Mine a stone deposit, high oxygen and hunger"
-                    :effect (fn [state]
-                              (swap! state update-in [:game :resources :stone] #(+ % 5))
-                                {:hunger (fn [factor] (int (* 1.7 factor)))
-                                 :oxygen (fn [factor] (int (* 1.7 factor)))
-                                 })
+                    :effect
+                    (fn [state]
+                      (let [jackhammer-bonus
+                            (if (get-in @state [:game :craftable :jackhammer :crafted])
+                              #(* 3 %)
+                              identity)]
+                        (swap! state update-in [:game :resources :stone] #(+ % (jackhammer-bonus 5))))
+                      {:hunger (fn [factor] (int (* 1.7 factor)))
+                       :oxygen (fn [factor] (int (* 1.7 factor)))
+                       })
                     :condition (fn [state] (pos? (get-in @state [:game :deposits :stone])))
                     :available true
                     }
@@ -176,11 +184,16 @@
                    {
                     :label "Mine metals"
                     :explain "Mine a metals deposit, high oxygen and hunger"
-                    :effect (fn [state]
-                              (swap! state update-in [:game :resources :metals] #(+ % 5))
-                                {:hunger (fn [factor] (int (* 1.7 factor)))
-                                 :oxygen (fn [factor] (int (* 1.7 factor)))
-                                 })
+                    :effect 
+                    (fn [state]
+                      (let [jackhammer-bonus
+                            (if (get-in @state [:game :craftable :jackhammer :crafted])
+                              #(* 3 %)
+                              identity)]
+                        (swap! state update-in [:game :resources :metals] #(+ % (jackhammer-bonus 5))))
+                      {:hunger (fn [factor] (int (* 1.7 factor)))
+                       :oxygen (fn [factor] (int (* 1.7 factor)))
+                       }) 
                     :condition (fn [state] (pos? (get-in @state [:game :deposits :metals])))
                     :available true
                     }
@@ -223,7 +236,24 @@
                     :available true
                     }
 
-                   }
+                   :make-electronics
+                   {
+                    :label "Make electronics"
+                    :explain "a useful component for many things"
+                    :price (fn [state] {:stone 4 :metals 2})
+                    :effect (fn [state]
+                              (let [price ((get-in @state [:game :activities :make-electronics :price]) state)]
+                                (swap! state update-in [:game :resources]
+                                     #(merge-with - % price)))
+                                (swap! state update-in [:game :resources :electronics] inc) 
+                                {})
+                    :condition (fn [state]
+                                 (has-resources? state
+                                                 ((get-in @state [:game :activities :make-electronics :price]) state)))
+                    :available true
+                    }
+    
+      }
       :buildings {
                   :water-extractor
                   {
@@ -237,7 +267,6 @@
                              (swap! state update-in [:game :resources :water] #(+ % 10))
                              )
                    }
-                  ;:craft-bench {}
                   :farm {
                          :label "Potato farm"
                          :price (fn [state] {:stone 30 :metals 5})
@@ -253,7 +282,34 @@
                          :plants []
                          }
                   ;:laboratory {}
+                  :craft-bench
+                  {
+                   :label "Craft bench"
+                   :price (fn [state] {:stone 10 :metals 2})
+                   :built false
+                   :condition (fn [state]
+                                (has-resources? state {:stone 5 :metals 1}))
+                   :effect (fn [state]
+                             ;(println "effect of water xtracv")
+                             ;(swap! state update-in [:game :resources :water] #(+ % 10))
+                             )
+                   }
                   }
+      :craftable
+      {
+       :jackhammer {
+                    :label "Jackhammer"
+                    :explain "Increase mining yield"
+                    :price (fn [state] {:metals 10})
+                    :crafted false
+                    }
+       :metal-detector {
+                    :label "Metal detector"
+                    :explain "Increase findings when exploring"
+                    :price (fn [state] {:metals 10 :electronics 4})
+                    :crafted false
+                    }
+            }
       :journal []
       }
      :coins 100
@@ -479,7 +535,7 @@
 
 (defn activities []
   [:div {:class "activities"}
-   [:h1 "Activities"]
+   ;[:h4 "Activities"]
    (doall
      (for [[k a] (get-in @state [:game :activities])]
        (when ((or (:condition a)
@@ -513,7 +569,7 @@
     (when-not (:built b)
       ((:price b) state))
     (condp = k
-      :farm [:div (str "Plants : " (count (:plants b)) "/" (:max-plants b))]
+      :farm [:div {:class "explain"} (str "Plants : " (count (:plants b)) "/" (:max-plants b))]
       nil
       ;[:code (:plants b)]
       )
@@ -522,7 +578,7 @@
 
 (defn buildings []
   [:div {:class "buildings"}
-   [:h1 "Buildings"]
+   [:h4 "Buildings"]
    (doall
      (for [[k b] (get-in @state [:game :buildings])]
        (when (or (:built b)
@@ -531,6 +587,34 @@
        ))
    ]
   )
+
+(defn craft-item [k]
+  (let [c (get-in @state [:game :craftable k])
+        p ((:price c) state)]
+    (if (has-resources? state p)
+      (do
+        (swap! state update-in [:game :resources] (fn [r] (merge-with - r p)))
+        (swap! state assoc-in [:game :craftable k :crafted] true))
+      (log-event state (str "not enough resources for " (:label c))))))
+
+
+(defn craftable [k c]
+  ^{:key (name k)}
+  [:div {:class (str "craftable"
+                     (when (:crafted c) " crafted")
+                     (when (has-resources? state ((:price c) state))
+                       " can-craft") )
+         :on-click (when-not (:crafted c) #(craft-item k))}
+   [:div (:label c)]
+   [:div {:class "explain"} (:explain c)]])
+
+(defn craftables []
+  [:div {:class "craftables"}
+   [:h4 "Craftables"]
+   (doall
+     (for [[k b] (get-in @state [:game :craftable])]
+       (craftable k b)
+       ))])
 
 (defn journal []
   [:div {:class "journal"}
@@ -543,6 +627,8 @@
    [:div {:class "half half-left"}
     [:div {:class "container"} (activities)]
     [:div {:class "container"} (buildings)]
+    (when (get-in @state [:game :buildings :craft-bench :built])
+      [:div {:class "container"} (craftables)])
     ]
    [:div {:class "half half-right"} [:div {:class "container"} (journal)]]] 
   )
