@@ -227,7 +227,6 @@ table.bonuses td {
 }
 
 table.bonuses td:hover {
-  background-color: lightcoral;
 }
 
 table.bonuses .bonus-label {

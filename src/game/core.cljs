@@ -30,6 +30,7 @@
 
 (defn next-hour [state]
   (swap! state update-in [:game :time] inc)
+  (swap! state update-in [:total-time] inc)
   (let [current-activity (get-in @state
                                  [:game :activities (get-in @state [:game :selected-activity])])
         modifiers ((:effect current-activity) state)
@@ -81,7 +82,7 @@
                 0)
         alien-mineral (if (> r
                              (if has-metal-detector
-                               0.5
+                               0.2
                                1))
                         1
                         0)
@@ -140,7 +141,7 @@
      :total-time 0
      :total-runs 0
 
-     :hunger-decrease-from-eating 20
+     :hunger-decrease-from-eating 50
      :base-oxygen-consumption 10
      :potato-time-to-grow 5
      :water-extraction-n 10
@@ -192,7 +193,7 @@
                     :effect (fn [state]
                               (when (pos? (get-in @state [:game :resources :potatoes]))
                                 (swap! state update-in [:game :resources :potatoes] #(- % 1))
-                                (swap! state update-in [:game :hunger :current]=
+                                (swap! state update-in [:game :hunger :current]
                                        #(- % (get-in @state [:hunger-decrease-from-eating]))))
                               )
                     :condition (fn [state]
@@ -232,14 +233,14 @@
                    {
                     :order 3
                     :label "Mine stone"
-                    :explain "Mine a stone deposit, high oxygen and hunger"
+                    :explain "Mine a stone deposit, high oxygen and hunger impact"
                     :effect
                     (fn [state]
                       (let [jackhammer-bonus
                             (if (get-in @state [:game :craftable :jackhammer :crafted])
                               #(* 3 %)
                               identity)]
-                        (swap! state update-in [:game :resources :stone] #(+ % (jackhammer-bonus 5))))
+                        (swap! state update-in [:game :resources :stone] #(+ % (jackhammer-bonus 15))))
                       {:hunger (fn [factor] (int (* 1.7 factor)))
                        :oxygen (fn [factor] (int (* 1.7 factor)))
                        })
@@ -250,14 +251,14 @@
                    {
                     :order 4
                     :label "Mine metals"
-                    :explain "Mine a metals deposit, high oxygen and hunger"
+                    :explain "Mine a metals deposit, high oxygen and hunger impact"
                     :effect 
                     (fn [state]
                       (let [jackhammer-bonus
                             (if (get-in @state [:game :craftable :jackhammer :crafted])
                               #(* 3 %)
                               identity)]
-                        (swap! state update-in [:game :resources :metals] #(+ % (jackhammer-bonus 5))))
+                        (swap! state update-in [:game :resources :metals] #(+ % (jackhammer-bonus 8))))
                       {:hunger (fn [factor] (int (* 1.7 factor)))
                        :oxygen (fn [factor] (int (* 1.7 factor)))
                        })
@@ -372,9 +373,9 @@
                                 (swap! state update-in [:game :resources :alien-mineral] dec) 
                                 (swap! state update-in [:game :achievements :analyze-mineral] inc)
                                 (let [r (rand)
-                                      finds (condp < r
-                                              0.1 {:resource :diamond :text "An alien diamond!"}
-                                              0.4 {:resource :metals :text "Iron, we can use this"}
+                                      finds (condp > r
+                                              0.4 {:resource :diamond :text "An alien diamond!"}
+                                              0.8 {:resource :metals :text "Iron, we can use this"}
                                               {:resource :stone :text "Oh wait, it's just stone"}
                                               )]
                                   (when (= :diamond (:resource find))
@@ -387,6 +388,19 @@
                                  (and
                                    (get-in @state [:game :buildings :laboratory :built])
                                    (pos? (get-in @state [:game :resources :alien-mineral]))))
+                    :available true
+                    }
+
+                  :contact-aliens
+                   {
+                    :order -10
+                    :label "Contact the aliens"
+                    :explain "Maybe ask them if they know some nice pubs around"
+                    :effect (fn [state]
+                                {})
+                    :condition (fn [state]
+                                 (and
+                                   (get-in @state [:game :buildings :alien-beacon :built])))
                     :available true
                     }
       }
@@ -490,12 +504,14 @@
                    :price (fn [state] {:metals 100 :electronics 20 :stone 200})
                    :built false
                    :condition (fn [state]
-                                (or-seen
+                                (comment (or-seen
                                   state
                                   [:game :buildings :alien-beacon]
                                   #(and
                                      (get-in @state [:game :craftable :alien-crystal :crafted])
                                      (has-resources? state {:metals 10 :electronics 10 :stone 30}))))
+                                (get-in @state [:game :craftable :alien-crystal :crafted])
+                                )
                    :effect (fn [state]
                              (swap! state assoc :won true))
                    }
@@ -535,7 +551,8 @@
      {
       :potatoes-qty {
                      :order 0
-                     :label "More potatoes"
+                     :label "King of the fries"
+                     :description "More potatoes"
                      :level 0
                      :level-max 100
                      :next-price (bonus-price-double-every-level-fn 20)
@@ -550,7 +567,8 @@
 
       :water-qty  {
                    :order 1
-                   :label "More water"
+                   :label "Supersize cup"
+                   :description "More water"
                    :level 0
                    :level-max 100
                    :next-price (bonus-price-double-every-level-fn 30)
@@ -564,7 +582,8 @@
 
       :oxygen-qty  {
                     :order 2
-                   :label "Oxygen tank"
+                   :label "A can of fresh air"
+                   :description "Bigger oxygen tank"
                    :level 0
                    :level-max 20
                    :next-price (bonus-price-double-every-level-fn 25)
@@ -598,7 +617,7 @@
                    :level 0
                    :level-max 9
                    :next-price (bonus-price-double-every-level-fn 25)
-                   :bonus-value (fn [level] (* level 4))
+                   :bonus-value (fn [level] (* level 10))
                    :bonus-apply (fn [state bvalue]
                                   (swap! state
                                          assoc-in
@@ -608,7 +627,8 @@
 
       :jackhammer  {
                     :order 4
-                   :label "Free jackhammer!"
+                   :label "Diamond pickaxe"
+                   :description "Jackhammer at start"
                    :level 0
                    :level-max 1
                    :next-price (bonus-price-double-every-level-fn 300)
@@ -621,7 +641,7 @@
 
       :metal-detector  {
                     :order 3
-                   :label "Oh shiny"
+                   :label "Oh shiny!"
                    :description "Metal detector at start"
                    :level 0
                    :level-max 1
@@ -635,7 +655,7 @@
 
       :stone-deposit  {
                     :order 8
-                   :label "Landing spot 1"
+                   :label "Carry me to the quarry"
                    :description "Land near a discovered stone deposit"
                    :level 0
                    :level-max 1
@@ -650,7 +670,7 @@
 
       :metal-deposit  {
                     :order 9
-                   :label "Landing spot 2"
+                   :label "Heigh-Ho Heigh-Ho!"
                    :description "Land near a discovered metal deposit"
                    :level 0
                    :level-max 1
@@ -689,6 +709,22 @@
         :label "Grow and harvest food on the planet"
         :reward 100
         :condition (fn [state] (pos? (get-in @state [:game :achievements :grow-food])))
+        }
+       :find-stone-depo
+       {
+        :order 1.2
+        :done false
+        :label "Find a stone deposit"
+        :reward 70
+        :condition (fn [state] (pos? (get-in @state [:game :deposits :stone])))
+        }
+       :find-metals-depo
+       {
+        :order 1.4
+        :done false
+        :label "Find a metals deposit"
+        :reward 140
+        :condition (fn [state] (pos? (get-in @state [:game :deposits :metals])))
         }
        :survive-twenty-hours
        {
@@ -845,6 +881,7 @@
     [:li "The achievements list in the mission preparation screen can help guide you on what to do"]
     [:li "You'll need to die in order to upgrade"]
     [:li "It will take you multiple run to progress, don't give up!"]
+    [:li "Alien minerals can be analyzed in the laboratory building"]
     ] 
    ])
 
@@ -854,8 +891,7 @@
     [:div {:class "bonus-container"}
      [:div {:class "bonus-label"} (str (:label b) " (" lvl ")")]
      [:div {:class "bonus-description"} (str (:description b))]
-     (when (> (:level-max b) 1)
-       [:div {:class "bonus-description"} (str "Current bonus : +" ((:bonus-value b) lvl))])
+     ;(when (> (:level-max b) 1) [:div {:class "bonus-description"} (str "Current bonus : +" ((:bonus-value b) lvl))])
      [:button
       {:on-click #(buy-bonus [k b])
        :class "button small-button"
@@ -864,7 +900,7 @@
                    (not (has-enough-coins? ((:next-price b) lvl))))}
       (if (>= (:level b) (:level-max b))
         (str "Maxed")
-        (str "Buy: " ((:next-price b) lvl) " coins (+" ((:bonus-value b) (inc lvl)) ")" ))]
+        (str "Buy: " ((:next-price b) lvl) " coins"))]
      ]))
 
 (defn bonuses []
@@ -990,19 +1026,21 @@
                from-achievements
                )
      :description (remove nil? [
-                   (str from-time " from time spent on the planet")
-                   (when (pos? from-diamonds) (str from-diamonds " from diamonds"))
+                   [:div [:strong from-time] " from time spent on the planet"]
+                   (when (pos? from-diamonds) [:div [:strong from-diamonds] " from diamonds"])
                    (map
-                     (fn [[_ a]] [:div (str (:reward a) " from achievement '" (:label a) "'")])
+                     (fn [[_ a]] [:div [:strong (:reward a)] " from achievement '" [:strong (:label a)] "'"])
                      achievs)
                    ;(when (pos? from-achievements) (str from-achievements " from achievements"))
                    ])}))
 
 (defn won-screen []
-  [:div
+  [:div {:style {:text-align "center"}}
    [:h2 "We made contact with the aliens!"]
    [:div "Great job! You successfully established contact with the aliens on this planet"]
-   [:div (str "It took you " (:total-time @state) " hours accross " (:total-runs @state) " expeditions")]
+   [:div (str "It took you " (:total-time @state) " hours accross " (:total-runs @state) " expeditions!")]
+   [:br]
+   [:strong "Thank you for playing, I hope you liked it!"]
    ])
 
 
@@ -1010,7 +1048,7 @@
   (let [gains (gains-from-run)]
     [:div {:style {:text-align "center"}}
      [:h2 "You died"]
-     [:div (str "You gained : " (:total gains) " coins !")]
+     [:div "You gained : " [:strong (:total gains)] " coins !"]
      [:br]
      (for [g (:description gains)]
        ^{:key g} [:div g])
