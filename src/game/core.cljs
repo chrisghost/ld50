@@ -143,7 +143,28 @@
                                  :oxygen (fn [factor] (int (* 1.5 factor)))
                                  })
                               )
-                    }}
+                    }
+                   :mine-stone
+                   {
+                    :label "Mine stone"
+                    :effect (fn [state]
+                              (swap! state update-in [:game :resources :stone] #(+ % 5))
+                                {:hunger (fn [factor] (int (* 1.7 factor)))
+                                 :oxygen (fn [factor] (int (* 1.7 factor)))
+                                 })
+                    :condition (fn [state] (pos? (get-in @state [:game :deposits :stone])))
+                    }
+                   :mine-metals
+                   {
+                    :label "Mine metals"
+                    :effect (fn [state]
+                              (swap! state update-in [:game :resources :metals] #(+ % 5))
+                                {:hunger (fn [factor] (int (* 1.7 factor)))
+                                 :oxygen (fn [factor] (int (* 1.7 factor)))
+                                 })
+                    :condition (fn [state] (pos? (get-in @state [:game :deposits :metals])))
+                    }
+                   }
       :journal []
       }
      :coins 100
@@ -353,7 +374,9 @@
    [:h1 "Activities"]
    (doall
      (for [[k a] (get-in @state [:game :activities])]
-       (activity k a)
+       (when ((or (:condition a)
+                  (fn [_] true)) state)
+         (activity k a))
        ))
    ]
   )
