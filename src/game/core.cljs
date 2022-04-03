@@ -145,9 +145,7 @@
         (launch-timer)))
     5000))
 
-(defonce timer
-  (launch-timer)
-  )
+;(defonce timer (launch-timer))
 
 (defn start-mission [coins]
   (reinit-resources)
@@ -155,6 +153,7 @@
   (swap! state assoc :screen :mission-start))
 
 (defn start-run []
+  (launch-timer)
   (swap! state assoc :screen :game-main))
 
 ;; -------------------------
