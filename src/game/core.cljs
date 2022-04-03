@@ -122,22 +122,29 @@
                    :rest
                    {
                     :label "Rest"
+                    :explain "Wait and consume less oxygen, hunger grows slower"
                     :effect (fn [state]
                               {:hunger (fn [decrease] (/ decrease 2))
                                :oxygen (fn [decrease] (/ decrease 2))
                                }
-                              )} 
+                              )
+                    :available true
+                    } 
                    :eat
                    {
                     :label "Eat"
+                    :explain "Reduces hunger, consumes 1 potato"
                     :effect (fn [state]
                               (when (pos? (get-in @state [:game :resources :potatoes]))
                                 (swap! state update-in [:game :resources :potatoes] #(- % 1))
                                 (swap! state update-in [:game :hunger :current] #(- % 20)))
-                              )}
+                              )
+                    :available true
+                    }
                    :explore
                    {
                     :label "Explore"
+                    :explain "Go explore surroundings to find resources or more ..."
                     :effect (fn [state]
                               (let [finds (exploration-finds state)]
                                 (println "Found : " finds)
@@ -151,26 +158,31 @@
                                  :oxygen (fn [factor] (int (* 1.5 factor)))
                                  })
                               )
+                    :available true
                     }
                    :mine-stone
                    {
                     :label "Mine stone"
+                    :explain "Mine a stone deposit, high oxygen and hunger"
                     :effect (fn [state]
                               (swap! state update-in [:game :resources :stone] #(+ % 5))
                                 {:hunger (fn [factor] (int (* 1.7 factor)))
                                  :oxygen (fn [factor] (int (* 1.7 factor)))
                                  })
                     :condition (fn [state] (pos? (get-in @state [:game :deposits :stone])))
+                    :available true
                     }
                    :mine-metals
                    {
                     :label "Mine metals"
+                    :explain "Mine a metals deposit, high oxygen and hunger"
                     :effect (fn [state]
                               (swap! state update-in [:game :resources :metals] #(+ % 5))
                                 {:hunger (fn [factor] (int (* 1.7 factor)))
                                  :oxygen (fn [factor] (int (* 1.7 factor)))
                                  })
                     :condition (fn [state] (pos? (get-in @state [:game :deposits :metals])))
+                    :available true
                     }
                    }
       :buildings {
@@ -264,13 +276,16 @@
         (launch-timer)))
     5000))
 
+(defn timeout [fun ms]
+  (js/setTimeout fun ms))
+
 (defn start-mission [coins]
   (reinit-resources)
   (swap! state update :coins #(+ coins %))
   (swap! state assoc :screen :mission-start))
 
 (defn start-run []
-  (launch-timer)
+  ;(launch-timer)
   (swap! state assoc :screen :game-main)
   (log-event state "You arrived on a deserted planet, you should find resources and survive as much as you can"))
 
@@ -346,11 +361,13 @@
   (let [oxygen-prc (oxygen-bar-filled-percent)
         hunger-prc (hunger-bar-filled-percent)
         time-passed (time-passed-human-readable)
-        show-progress (not (dead? state))]
+        ;show-progress (not (dead? state))
+        ]
     [:div {:class "top-bar-stats"}
      [:div {:class "time"}
       [:span (str "Time passed : " time-passed)]
-      (when show-progress [:div {:class "progress"}])]
+      ;(when show-progress [:div {:class "progress"}])
+      ]
      [:div
       [:div {:class "bar-container oxygen-bar-container"}
        [:div {:class "bar-fill oxygen-bar-fill"
@@ -383,15 +400,24 @@
    ]))
 
 (defn select-activity [k]
-  (swap! state assoc-in [:game :selected-activity] k))
+  (swap! state assoc-in [:game :selected-activity] k)
+  (swap! state assoc-in [:game :activities k :available] false)
+  (timeout #(swap! state assoc-in [:game :activities k :available] true)
+           500)
+  (next-hour state))
 
 (defn activity [k a]
-  (let [current-selected-activity (get-in @state [:game :selected-activity])]
+  (let [
+        ;current-selected-activity (get-in @state [:game :selected-activity])
+        ]
     ^{:key (name k)}
     [:div
-     {:class (str "activity" (when (= current-selected-activity k) " selected"))
+     {:class (str "activity" ;(when (= current-selected-activity k) " selected")
+                  (when-not (:available a) " disabled")
+                  )
       :on-click #(select-activity k)}
-     [:span (:label a)]
+     [:div (:label a)]
+     [:div {:class "explain"} (:explain a)]
      ]))
 
 (defn activities []

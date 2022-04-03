@@ -119,11 +119,27 @@ a:hover {
 
 .activity {
   border: 1px solid black;
-  width: 250px;
+  width: 100%;
+  padding: 5px;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+.activity:hover {
+  background-color: lightgrey;
+}
+
+.activity.disabled {
+  background-color: grey;
 }
 
 .activity.selected {
-  background-color: red;
+  border: 2px blue solid;
+}
+
+.activity .explain {
+  font-style: italic;
+  font-size: small;
 }
 
 .building {
