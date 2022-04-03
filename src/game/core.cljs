@@ -88,12 +88,21 @@
 (defn ts [] (.getTime (js/Date.)))
 
 (defn log-event [state evt]
-  (swap! state update-in [:journal] (fn [j] (cons {:text evt :ts (ts)} j))))
+  ;(swap! state update-in [:journal] (fn [j] (cons {:text evt :ts (ts)} j))) 
+  (swap! state assoc-in [:journal] [{:text evt :ts (ts)}]))
 
 (defn has-resources? [state resources]
   (let [rsk (keys resources)
         has (select-keys (get-in @state [:game :resources]) rsk)]
     (every? #(not (neg? (second %))) (merge-with - has resources))))
+
+(defn resource-display [p]
+  (clojure.string/join " / "(map (fn [[k v]] (str (name k) " : " v)) p)))
+
+(defn price-display [p]
+  [:div {:class "price"}
+   (str "Price : " (resource-display p))])
+
 
 (def base-state
   {
@@ -124,6 +133,7 @@
       :activities {
                    :rest
                    {
+                    :order 0
                     :label "Rest"
                     :explain "Wait and consume less oxygen, hunger grows slower"
                     :effect (fn [state]
@@ -135,6 +145,7 @@
                     } 
                    :eat
                    {
+                    :order 1
                     :label "Eat"
                     :explain "Reduces hunger, consumes 1 potato"
                     :effect (fn [state]
@@ -146,12 +157,20 @@
                     }
                    :explore
                    {
+                    :order 2
                     :label "Explore"
                     :explain "Go explore surroundings to find resources or more ..."
                     :effect (fn [state]
                               (let [finds (exploration-finds state)]
                                 (println "Found : " finds)
-                                (log-event state (str "Found : " finds))
+                                (log-event state
+                                           (str "Found : "
+                                                (resource-display (:resources finds))
+                                                (when (get-in finds [:deposits :metals])
+                                                  " And a metals deposit !")
+                                                (when (get-in finds [:deposits :stone])
+                                                  " And a stone deposit !")
+                                                ))
                                 (swap! state update-in [:game :resources]
                                      (fn [rs] (merge-with + rs (:resources finds))))
                                 (swap! state update-in [:game :deposits]
@@ -165,6 +184,7 @@
                     }
                    :mine-stone
                    {
+                    :order 3
                     :label "Mine stone"
                     :explain "Mine a stone deposit, high oxygen and hunger"
                     :effect
@@ -182,6 +202,7 @@
                     }
                    :mine-metals
                    {
+                    :order 4
                     :label "Mine metals"
                     :explain "Mine a metals deposit, high oxygen and hunger"
                     :effect 
@@ -199,6 +220,7 @@
                     }
                    :plant
                    {
+                    :order 5
                     :label "Plant potatoes"
                     :explain "Yummy!"
                     :effect (fn [state]
@@ -216,6 +238,7 @@
 
                    :harvest
                    {
+                    :order 6
                     :label "Harvest potatoes"
                     :explain "Yummy!"
                     :effect (fn [state]
@@ -238,6 +261,7 @@
 
                    :make-electronics
                    {
+                    :order 7
                     :label "Make electronics"
                     :explain "a useful component for many things"
                     :price (fn [state] {:stone 4 :metals 2})
@@ -248,13 +272,16 @@
                                 (swap! state update-in [:game :resources :electronics] inc) 
                                 {})
                     :condition (fn [state]
-                                 (has-resources? state
-                                                 ((get-in @state [:game :activities :make-electronics :price]) state)))
+                                 (and
+                                   (get-in @state [:game :buildings :craft-bench :built])
+                                   (has-resources? state
+                                                 ((get-in @state [:game :activities :make-electronics :price]) state))))
                     :available true
                     }
 
                   :extract-water
                    {
+                    :order 8
                     :label "Extract water"
                     :explain "the source of life!"
                     :effect (fn [state]
@@ -541,10 +568,6 @@
 
    ]))
 
-(defn price-display [p]
-  [:div {:class "price"}
-   (str "Price : " (clojure.string/join " / "(map (fn [[k v]] (str (name k) " : " v)) p)))])
-
 (defn select-activity [k]
   (swap! state assoc-in [:game :selected-activity] k)
   (swap! state assoc-in [:game :activities k :available] false)
@@ -578,7 +601,7 @@
   [:div {:class "activities"}
    ;[:h4 "Activities"]
    (doall
-     (for [[k a] (get-in @state [:game :activities])]
+     (for [[k a] (sort-by #(:order (second %)) (get-in @state [:game :activities]))]
        (when ((or (:condition a)
                   (fn [_] true)) state)
          (activity k a))
@@ -662,6 +685,7 @@
 
 (defn journal []
   [:div {:class "journal"}
+   "Last event : "
    (for [evt (get-in @state [:journal])]
      ^{:key (:ts evt)} [:div {:class "event"} (:text evt)]
      )])
@@ -672,7 +696,7 @@
     [:div {:class "container"} (activities)]
     ]
    [:div {:class "half half-right"}
-    ;[:div {:class "container"} (journal)]
+    [:div {:class "container"} (journal)]
     [:div {:class "container"} (buildings)]
     (when (get-in @state [:game :buildings :craft-bench :built])
       [:div {:class "container"} (craftables)])
