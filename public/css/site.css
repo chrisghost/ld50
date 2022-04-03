@@ -117,12 +117,18 @@ a:hover {
   background-color: red;
 }
 
-.activity {
+.block {
   border: 1px solid black;
   width: 100%;
   padding: 5px;
   margin-bottom: 4px;
-  cursor: pointer;
+}
+
+.block .price{
+  font-size: small;
+}
+
+.activity {
 }
 
 .activity:hover {
@@ -143,9 +149,6 @@ a:hover {
 }
 
 .building {
-  border: 1px solid black;
-  width: 250px;
-  background-color: grey;
 }
 
 .building.can-build {
@@ -156,10 +159,23 @@ a:hover {
   background-color: white;
 }
 
+.can-do {
+  cursor: pointer;
+}
+
+.cant-do {
+  cursor: not-allowed;
+}
+
+.has-done {
+  cursor: default;
+}
+
+.need-wait {
+  cursor: wait;
+}
+
 .craftable {
-  border: 1px solid black;
-  width: 250px;
-  background-color: grey;
 }
 
 .craftable.can-craft {

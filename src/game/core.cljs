@@ -541,6 +541,10 @@
 
    ]))
 
+(defn price-display [p]
+  [:div {:class "price"}
+   (str "Price : " (clojure.string/join " / "(map (fn [[k v]] (str (name k) " : " v)) p)))])
+
 (defn select-activity [k]
   (swap! state assoc-in [:game :selected-activity] k)
   (swap! state assoc-in [:game :activities k :available] false)
@@ -554,8 +558,10 @@
         ]
     ^{:key (name k)}
     [:div
-     {:class (str "activity" ;(when (= current-selected-activity k) " selected")
-                  (when-not (:available a) " disabled")
+     {:class (str "block activity" ;(when (= current-selected-activity k) " selected")
+                  (if (:available a)
+                    " can-do"
+                    " disabled need-wait")
                   )
       :on-click #(select-activity k)}
      [:div (:label a)]
@@ -565,6 +571,7 @@
                                      #(pos? (:time-left %))
                                      (get-in @state [:game :buildings :farm :plants]))) " potatoes available")]
        nil)
+     (when (:price a) (price-display ((:price a) state)))
      ]))
 
 (defn activities []
@@ -591,17 +598,17 @@
 (defn building [k b]
   ^{:key (name k)}
   [:div
-   {:class (str "building"
+   {:class (str "block building"
                 (if (:built b)
-                  " built"
-                  (when (has-resources? state ((:price b) state))
-                    " can-build")))
+                  " built has-done"
+                  (if (has-resources? state ((:price b) state))
+                    " can-build can-do"
+                    " cant-do")))
     :on-click (when-not (:built b) #(construct-building k))
     }
    [:span
     (:label b)
-    (when-not (:built b)
-      ((:price b) state))
+    (when-not (:built b) (price-display ((:price b) state)))
     (condp = k
       :farm [:div {:class "explain"} (str "Plants : " (count (:plants b)) "/" (:max-plants b))]
       nil
@@ -634,13 +641,16 @@
 
 (defn craftable [k c]
   ^{:key (name k)}
-  [:div {:class (str "craftable"
-                     (when (:crafted c) " crafted")
-                     (when (has-resources? state ((:price c) state))
-                       " can-craft") )
+  [:div {:class (str "block craftable"
+                     (when (:crafted c) " crafted has-done")
+                     (if (has-resources? state ((:price c) state))
+                         " can-craft can-do"
+                         " cant-do") )
          :on-click (when-not (:crafted c) #(craft-item k))}
    [:div (:label c)]
-   [:div {:class "explain"} (:explain c)]])
+   [:div {:class "explain"} (:explain c)]
+   (when-not (:crafted c) (price-display ((:price c) state)))
+   ])
 
 (defn craftables []
   [:div {:class "craftables"}
@@ -660,11 +670,14 @@
   [:div
    [:div {:class "half half-left"}
     [:div {:class "container"} (activities)]
+    ]
+   [:div {:class "half half-right"}
+    ;[:div {:class "container"} (journal)]
     [:div {:class "container"} (buildings)]
     (when (get-in @state [:game :buildings :craft-bench :built])
       [:div {:class "container"} (craftables)])
     ]
-   [:div {:class "half half-right"} [:div {:class "container"} (journal)]]] 
+   ]
   )
 
 (defn resources []
