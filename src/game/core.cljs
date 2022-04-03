@@ -184,6 +184,45 @@
                     :condition (fn [state] (pos? (get-in @state [:game :deposits :metals])))
                     :available true
                     }
+                   :plant
+                   {
+                    :label "Plant potatoes"
+                    :explain "Yummy!"
+                    :effect (fn [state]
+                              (swap! state update-in [:game :buildings :farm :plants] 
+                                     (fn [p] (cons {:time-left 5} p))
+                                     )
+                                {:hunger (fn [factor] (int (* 1.7 factor)))
+                                 :oxygen (fn [factor] (int (* 1.7 factor)))
+                                 })
+                    :condition (fn [state]
+                                      (< (count (get-in @state [:game :buildings :farm :plants]))
+                                         (get-in @state [:game :buildings :farm :max-plants])))
+                    :available true
+                    }
+
+                   :harvest
+                   {
+                    :label "Harvest potatoes"
+                    :explain "Yummy!"
+                    :effect (fn [state]
+                              (swap! state update-in [:game :resources :potatoes]
+                                     #(+ %
+                                         (count
+                                           (remove
+                                             (fn [plant] (pos? (:time-left plant)))
+                                             (get-in @state [:game :buildings :farm :plants])))))
+                              (swap! state update-in [:game :buildings :farm :plants]
+                                     (fn [p] (filter #(pos? (:time-left %)) p)))
+                                {:hunger (fn [factor] (int (* 1.7 factor)))
+                                 :oxygen (fn [factor] (int (* 1.7 factor)))
+                                 })
+                    :condition (fn [state]
+                                 (some #(not (pos? (:time-left %)))
+                                      (get-in @state [:game :buildings :farm :plants])))
+                    :available true
+                    }
+
                    }
       :buildings {
                   :water-extractor
@@ -199,7 +238,20 @@
                              )
                    }
                   ;:craft-bench {}
-                  ;:farm {}
+                  :farm {
+                         :label "Potato farm"
+                         :price (fn [state] {:stone 30 :metals 5})
+                         :built true
+                         :condition (fn [state]
+                                      (has-resources? state {:stone 15 :metals 2}))
+                         :effect (fn [state]
+                                   (println "Apply potato farm")
+                                   (swap! state update-in [:game :buildings :farm :plants]
+                                          #(map (fn [p] (update p :time-left dec)) %))
+                                   )
+                         :max-plants 10
+                         :plants []
+                         }
                   ;:laboratory {}
                   }
       :journal []
@@ -418,6 +470,11 @@
       :on-click #(select-activity k)}
      [:div (:label a)]
      [:div {:class "explain"} (:explain a)]
+     (condp = k
+       :harvest [:span (str (count (remove
+                                     #(pos? (:time-left %))
+                                     (get-in @state [:game :buildings :farm :plants]))) " potatoes available")]
+       nil)
      ]))
 
 (defn activities []
@@ -455,6 +512,11 @@
     (:label b)
     (when-not (:built b)
       ((:price b) state))
+    (condp = k
+      :farm [:div (str "Plants : " (count (:plants b)) "/" (:max-plants b))]
+      nil
+      ;[:code (:plants b)]
+      )
     ]
    ])
 
