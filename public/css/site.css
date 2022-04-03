@@ -153,6 +153,7 @@ a:hover {
 
 .building.can-build {
   background-color: white;
+  border: 1px solid blue;
 }
 
 .building.built {
@@ -245,4 +246,36 @@ table.resources .rqty {
 }
 
 .half.half-right {
+}
+
+.achievement {
+  clear: both;
+  height: 30px;
+  line-height: 30px;
+}
+
+.achievement.done {
+  background-color: lightgrey;
+}
+
+.achievement.done span {
+  text-decoration: line-through;
+}
+
+.achievement .label {
+  float:left;
+}
+
+.achievement .reward {
+  float:right;
+}
+
+.start-run-button {
+  padding: 40px;
+  background-color: purple;
+  color: white;
+  font-weight: bold;
+  width: 90%;
+  font-size: xxx-large;
+  cursor: pointer;
 }
