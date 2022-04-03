@@ -169,3 +169,20 @@ table.resources .rqty {
 .bonuses-container .bonus-container button {
 }
 
+
+.half {
+  width: 50%;
+  float: left;
+}
+
+.half .container {
+  padding: 10px;
+}
+
+.half.half-left {
+  background-color : blue;
+}
+
+.half.half-right {
+  background-color : green;
+}

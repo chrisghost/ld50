@@ -50,43 +50,101 @@
             base
             (range 1 (inc level)))) )
 
+(defn can-find-deposits [state]
+  (let [depo (get-in @state [:game :deposits])]
+    {:stone (zero? (:stone depo))
+     :metals (zero? (:metals depo))
+     })
+  )
+
+(defn exploration-finds [state]
+  (let [r (rand)
+        depo (can-find-deposits state)
+        _ (println depo)
+        stone-depo (if (and (> r 0.3) (:stone depo))
+                     {:deposits {:stone 1 }}
+                     {}
+                     )
+        metals-depo (if (and (> r 0.7) (:metals depo))
+                     {:deposits {:metals 1 }}
+                     {}
+                     )
+        stone (if (> r 0.4)
+                (int (* 20 (rand)))
+                0)
+        metals (if (> r 0.7)
+                (int (* 10 (rand)))
+                0)
+        ]
+    (merge stone-depo metals-depo {:resources {:stone stone :metals metals}})))
+
+(defn ts [] (.getTime (js/Date.)))
+
+(defn log-event [state evt]
+  (swap! state update-in [:journal] (fn [j] (cons {:text evt :ts (ts)} j))))
+
+
 (def base-state
   {
      :screen :mission-start ;:game-main ;:home
      :game
      {
       :hunger {:current 0
-               :max 30}
+               :max 30000}
       :resources {
-                  :oxygen 145
+                  :oxygen 1450
                   :stone 0
                   :water 10
                   :metals 0
                   :electronics 0
                   :potatoes 10
                   }
+      :deposits {
+                 :stone 0
+                 :metals 0
+                 }
       :equipment {
                   :oxygen-tank {
-                                :capacity 200
+                                :capacity 2000
                                 }}
 
       :time 0
       :selected-activity :rest
       :activities {
-                   :rest {
-                          :label "Rest"
-                          :effect (fn [state]
-                                    {:hunger (fn [decrease] (/ decrease 2))
-                                     :oxygen (fn [decrease] (/ decrease 2))
-                                     }
-                                    )} 
-                   :eat {
-                         :label "Eat"
-                         :effect (fn [state]
-                                   (when (pos? (get-in @state [:game :resources :potatoes]))
-                                     (swap! state update-in [:game :resources :potatoes] #(- % 1))
-                                     (swap! state update-in [:game :hunger :current] #(- % 20)))
-                                   )}}
+                   :rest
+                   {
+                    :label "Rest"
+                    :effect (fn [state]
+                              {:hunger (fn [decrease] (/ decrease 2))
+                               :oxygen (fn [decrease] (/ decrease 2))
+                               }
+                              )} 
+                   :eat
+                   {
+                    :label "Eat"
+                    :effect (fn [state]
+                              (when (pos? (get-in @state [:game :resources :potatoes]))
+                                (swap! state update-in [:game :resources :potatoes] #(- % 1))
+                                (swap! state update-in [:game :hunger :current] #(- % 20)))
+                              )}
+                   :explore
+                   {
+                    :label "Explore"
+                    :effect (fn [state]
+                              (let [finds (exploration-finds state)]
+                                (println "Found : " finds)
+                                (log-event state (str "Found : " finds))
+                                (swap! state update-in [:game :resources]
+                                     (fn [rs] (merge-with + rs (:resources finds))))
+                                (swap! state update-in [:game :deposits]
+                                       (fn [ds] (merge-with + ds (:deposits finds))))
+
+                                {:hunger (fn [factor] (int (* 1.5 factor)))
+                                 :oxygen (fn [factor] (int (* 1.5 factor)))
+                                 })
+                              )
+                    }}
+      :journal []
       }
      :coins 100
      :bonuses
@@ -167,7 +225,8 @@
 
 (defn start-run []
   (launch-timer)
-  (swap! state assoc :screen :game-main))
+  (swap! state assoc :screen :game-main)
+  (log-event state "You arrived on a deserted planet, you should find resources and survive as much as you can"))
 
 ;; -------------------------
 ;; Views
@@ -299,6 +358,18 @@
    ]
   )
 
+(defn journal []
+  [:div {:class "journal"}
+   (for [evt (get-in @state [:journal])]
+     ^{:key (:ts evt)} [:div {:class "event"} (:text evt)]
+     )])
+
+(defn alive-view []
+  [:div
+   [:div {:class "half half-left"} [:div {:class "container"} (activities)]]
+   [:div {:class "half half-right"} [:div {:class "container"} (journal)]]] 
+  )
+
 (defn resources []
   [:table {:class "resources"}
    [:tbody
@@ -321,7 +392,7 @@
      (resources)
      (if is-dead
        (death-screen)
-       (activities)
+       (alive-view)
        )
      [:hr]
      ]))
