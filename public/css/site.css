@@ -126,6 +126,20 @@ a:hover {
   background-color: red;
 }
 
+.building {
+  border: 1px solid black;
+  width: 250px;
+  background-color: grey;
+}
+
+.building.can-build {
+  background-color: white;
+}
+
+.building.built {
+  background-color: white;
+}
+
 table.resources {
   border: 1px solid black;
   border-collapse: collapse;

@@ -26,14 +26,18 @@
   (swap! state update-in [:game :hunger :current] #(clamp (+ % (modifier-fn 10))
                                                           0
                                                           (get-in @state [:game :hunger :max]))))
+(defn apply-buildings-effects [state]
+  (doseq [[_ b] (filter #(:built (second %)) (get-in @state [:game :buildings]))]
+    ((:effect b) state)))
 
 (defn next-hour [state]
   (swap! state update-in [:game :time] inc)
   (let [current-activity (get-in @state
                                  [:game :activities (get-in @state [:game :selected-activity])])
         modifiers ((:effect current-activity) state)
-        _ (println modifiers)
+        ;_ (println modifiers)
         ]
+    (apply-buildings-effects state)
     (decrease-oxygen state (or (:oxygen modifiers) identity))
     (increase-hunger state (or (:hunger modifiers) identity)))
   )
@@ -83,6 +87,10 @@
 (defn log-event [state evt]
   (swap! state update-in [:journal] (fn [j] (cons {:text evt :ts (ts)} j))))
 
+(defn has-resources? [state resources]
+  (let [rsk (keys resources)
+        has (select-keys (get-in @state [:game :resources]) rsk)]
+    (every? #(not (neg? (second %))) (merge-with - has resources))))
 
 (def base-state
   {
@@ -93,9 +101,9 @@
                :max 30000}
       :resources {
                   :oxygen 1450
-                  :stone 0
+                  :stone 16
                   :water 10
-                  :metals 0
+                  :metals 6
                   :electronics 0
                   :potatoes 10
                   }
@@ -165,6 +173,23 @@
                     :condition (fn [state] (pos? (get-in @state [:game :deposits :metals])))
                     }
                    }
+      :buildings {
+                  :water-extractor
+                  {
+                   :label "Water extractor"
+                   :price (fn [state] {:stone 30 :metals 10})
+                   :built false
+                   :condition (fn [state]
+                                (has-resources? state {:stone 15 :metals 5}))
+                   :effect (fn [state]
+                             (println "effect of water xtracv")
+                             (swap! state update-in [:game :resources :water] #(+ % 10))
+                             )
+                   }
+                  ;:craft-bench {}
+                  ;:farm {}
+                  ;:laboratory {}
+                  }
       :journal []
       }
      :coins 100
@@ -381,6 +406,44 @@
    ]
   )
 
+(defn construct-building [k]
+  (let [b (get-in @state [:game :buildings k])
+        p ((:price b) state)]
+    (if (has-resources? state p)
+      (do
+        (swap! state update-in [:game :resources] (fn [r] (merge-with - r p)))
+        (swap! state assoc-in [:game :buildings k :built] true))
+      (log-event state (str "not enough resources for " (:label b))))))
+
+(defn building [k b]
+  ^{:key (name k)}
+  [:div
+   {:class (str "building"
+                (if (:built b)
+                  " built"
+                  (when (has-resources? state ((:price b) state))
+                    " can-build")))
+    :on-click (when-not (:built b) #(construct-building k))
+    }
+   [:span
+    (:label b)
+    (when-not (:built b)
+      ((:price b) state))
+    ]
+   ])
+
+(defn buildings []
+  [:div {:class "buildings"}
+   [:h1 "Buildings"]
+   (doall
+     (for [[k b] (get-in @state [:game :buildings])]
+       (when (or (:built b)
+                 ((:condition b) state))
+         (building k b))
+       ))
+   ]
+  )
+
 (defn journal []
   [:div {:class "journal"}
    (for [evt (get-in @state [:journal])]
@@ -389,7 +452,10 @@
 
 (defn alive-view []
   [:div
-   [:div {:class "half half-left"} [:div {:class "container"} (activities)]]
+   [:div {:class "half half-left"}
+    [:div {:class "container"} (activities)]
+    [:div {:class "container"} (buildings)]
+    ]
    [:div {:class "half half-right"} [:div {:class "container"} (journal)]]] 
   )
 
