@@ -1,8 +1,7 @@
 body {
   font-family: 'Helvetica Neue', Verdana, Helvetica, Arial, sans-serif;
-  max-width: 600px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding-top: 72px;
   -webkit-font-smoothing: antialiased;
   font-size: 1.125em;
   color: #333;
@@ -42,29 +41,41 @@ a:hover {
 
 .game-main-screen {
   padding: 15px;
+  /*
   position:absolute;
   top:0;
   left:0;
   right:0;
   bottom:0;
-  padding-top: 30px;
+  */
 }
 
 .top-bar-stats {
-  position:fixed;
+  /*
+  width: 100%;
+  max-width: 1200px;
   top:0;
   left:0;
   right:0;
-  height: 25px;
+  */
+  height: 45px;
   background-color: grey;
+  clear: both;
+  padding-top : 5px;
 }
 
 .top-bar-stats > div {
   float: left;
 }
 
-.top-bar-stats .time {
+.top-bar-stats > div {
   width: 30%;
+}
+
+.top-bar-stats .time {
+  padding-left : 10px;
+  line-height: 30px;
+  color: white;
 }
 
 .top-bar-stats .time .progress {
@@ -81,25 +92,20 @@ a:hover {
 
 .top-bar-stats .bar-container {
   background-color: black;
-  height: 20px;
+  height: 30px;
   padding: 2px;
-  width: 30%;
-
-  position: absolute;
+  width: 80%;
 }
 
 .top-bar-stats .bar-container .bar-fill {
-  float:left;
-  height: 18px;
-  position: absolute;
+  height: 30px;
 }
 
 .top-bar-stats .bar-container .bar-text {
-  line-height: 14px;
+  line-height: 30px;
+  text-align:center;
   padding: 2px;
   color: white;
-  height: 18px;
-  position: absolute;
 }
 
 .top-bar-stats .oxygen-bar-container {
@@ -210,23 +216,27 @@ table.resources .rqty {
   float: right;
 }
 
-.bonuses-container {
-
+table.bonuses {
+  width: 100%;
 }
 
-.bonuses-container .bonus-container {
-  width: 30%;
-  background-color: red;
-  float:left;
-  padding: 4px;
-  border: 1px solid black;
+table.bonuses td {
+  width:30%;
+  padding: 20px;
+  margin:20px;
 }
 
-.bonuses-container .bonus-container .bonus-label {
+table.bonuses td:hover {
+  background-color: lightcoral;
+}
+
+table.bonuses .bonus-label {
   font-weight: bold;
 }
 
-.bonuses-container .bonus-container .bonus-description {
+
+table.bonuses .bonus-description {
+  font-style: italic;
 }
 
 .bonuses-container .bonus-container button {
@@ -246,6 +256,11 @@ table.resources .rqty {
 }
 
 .half.half-right {
+}
+
+.achievements {
+  margin-left: 15%;
+  margin-right: 15%;
 }
 
 .achievement {
@@ -270,12 +285,30 @@ table.resources .rqty {
   float:right;
 }
 
-.start-run-button {
-  padding: 40px;
+.button {
   background-color: purple;
   color: white;
   font-weight: bold;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.small-button {
+  padding: 8px;
+  font-size: medium;
+}
+
+.medium-button {
+  padding: 20px;
+  width: 30%;
+  font-size: large;
+}
+.big-button {
+  padding: 40px;
   width: 90%;
   font-size: xxx-large;
-  cursor: pointer;
 }
