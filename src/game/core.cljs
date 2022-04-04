@@ -84,9 +84,8 @@
                              (if has-metal-detector
                                0.2
                                1))
-                        1
-                        0)
-        ]
+                        (inc (int (* (rand) 3)))
+                        0)]
     (when (pos? alien-mineral)
       (swap! state update-in [:game :achievements :find-alien-mineral] inc))
     (merge stone-depo metals-depo
@@ -111,12 +110,12 @@
      (doall
        (map-indexed
          (fn [idx [k v]]
-           (let [rstr (str (clojure.string/replace (name k) #"-" " ") " : " v)
+           (let [rstr (str (clojure.string/capitalize (clojure.string/replace (name k) #"-" " ")) " : " v)
                  trail (when (< idx (dec (count ress))) " / ")]
              ^{:key k} [:span
                         [:span
                          {:style (when-not (or (nil? state) (has-resources? state {k v}))
-                                   {:color "red"})}
+                                   {:color "#eb4d4b"})}
                          rstr]
                         trail]))
          ress)))))
@@ -212,7 +211,7 @@
                   :effect (fn [state]
                             (let [finds (exploration-finds state)]
                               (log-event state
-                                         [:div "Found : "
+                                         [:div "You found : "
                                           (if (pos? (reduce + (map second (:resources finds))))
                                             (resource-display (:resources finds))
                                             "nothing ...")
@@ -508,14 +507,7 @@
              :price (fn [state] {:metals 100 :electronics 20 :stone 200})
              :built false
              :condition (fn [state]
-                          (comment (or-seen
-                                     state
-                                     [:game :buildings :alien-beacon]
-                                     #(and
-                                        (get-in @state [:game :craftable :alien-crystal :crafted])
-                                        (has-resources? state {:metals 10 :electronics 10 :stone 30}))))
-                          (get-in @state [:game :craftable :alien-crystal :crafted])
-                          )
+                          (get-in @state [:game :craftable :alien-crystal :crafted]))
              :effect (fn [state]
                        (swap! state assoc :won true))
              }
@@ -601,7 +593,7 @@
 
  :oxygen-consumption-decrease  {
                                 :order 6
-                                :label "Yoga"
+                                :label "Yoga classes"
                                 :description "Decrease oxygen consumption"
                                 :level 0
                                 :level-max 9
@@ -990,12 +982,12 @@
         ]
     [:div {:class "top-bar-stats"}
      [:div {:class "time"}
-      (str "Time : " time-passed)
+      (str "Time spent : " time-passed)
       ]
      [:div
       [:div {:class "bar-container oxygen-bar-container"}
        [:div {:class "bar-fill oxygen-bar-fill"
-              :style {:background (str "linear-gradient(to right, blue " oxygen-prc "%, transparent 0)");
+              :style {:background (str "linear-gradient(to right, #686de0 " oxygen-prc "%, transparent 0)");
                       }}
         [:div {:class "bar-text" } (str "O2 : " oxygen-prc "%")]
         ]
@@ -1004,7 +996,7 @@
      [:div
       [:div {:class "bar-container hunger-bar-container"}
        [:div {:class "bar-fill hunger-bar-fill"
-              :style {:background (str "linear-gradient(to right, red " hunger-prc "%, transparent 0)");
+              :style {:background (str "linear-gradient(to right, #eb4d4b " hunger-prc "%, transparent 0)");
                       }}
         [:div {:class "bar-text" } (str "Hunger : " hunger-prc "%")]
         ]
@@ -1107,7 +1099,7 @@
       (do
         (swap! state update-in [:game :resources] (fn [r] (merge-with - r p)))
         (swap! state assoc-in [:game :buildings k :built] true))
-      (log-event state (str "not enough resources for " (:label b))))))
+      (log-event state (str "Not enough resources for " (:label b))))))
 
 (defn building [k b]
   ^{:key (name k)}
@@ -1206,7 +1198,7 @@
         (for [[k r] rrows]
           ^{:key (name k)}
           [:td
-           [:span {:class "rname"} (name k)]
+           [:span {:class "rname"} (clojure.string/capitalize (clojure.string/replace (name k) #"-" " "))]
            [:span {:class "rqty"} r]
            ]
           )])]
