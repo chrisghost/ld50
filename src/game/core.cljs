@@ -1023,7 +1023,7 @@
                                 [:div [:strong from-time] " from time spent on the planet"]
                                 (when (pos? from-diamonds) [:div [:strong from-diamonds] " from diamonds"])
                                 (map
-                                  (fn [[_ a]] [:div [:strong (:reward a)] " from achievement '" [:strong (:label a)] "'"])
+                                  (fn [[k a]] ^{:key k} [:div [:strong (:reward a)] " from achievement '" [:strong (:label a)] "'"])
                                   achievs)
                                 ;(when (pos? from-achievements) (str from-achievements " from achievements"))
                                 ])}))
