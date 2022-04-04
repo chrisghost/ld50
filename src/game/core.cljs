@@ -1,7 +1,7 @@
 (ns game.core
-    (:require
-      [reagent.core :as r]
-      [reagent.dom :as d]))
+  (:require
+    [reagent.core :as r]
+    [reagent.dom :as d]))
 
 
 (defn clamp-low [v low]
@@ -68,9 +68,9 @@
                      {}
                      )
         metals-depo (if (and (> r 0.7) (:metals depo))
-                     {:deposits {:metals 1 }}
-                     {}
-                     )
+                      {:deposits {:metals 1 }}
+                      {}
+                      )
         stone (if (> r 0.2)
                 (int (* 10 (rand)))
                 0)
@@ -78,8 +78,8 @@
                       (if has-metal-detector
                         0.1
                         0.3))
-                (int (* 5 (rand)))
-                0)
+                 (int (* 5 (rand)))
+                 0)
         alien-mineral (if (> r
                              (if has-metal-detector
                                0.2
@@ -106,16 +106,20 @@
 (defn resource-display
   ([p] (resource-display nil p))
   ([state p]
-   (doall
-     (map
-       (fn [[k v]]
-         (let [rstr (str (clojure.string/replace (name k) #"-" " ") " : " v " / ")]
-           (if (nil? state)
-             ^{:key k} [:span rstr]
-             (if (has-resources? state {k v})
-               ^{:key k} [:span rstr]
-               ^{:key k} [:span {:style {:color "red"}} rstr]))))
-       (filter #(pos? (second %)) p)))))
+   (let
+     [ress (filter #(pos? (second %)) p)]
+     (doall
+       (map-indexed
+         (fn [idx [k v]]
+           (let [rstr (str (clojure.string/replace (name k) #"-" " ") " : " v)
+                 trail (when (< idx (dec (count ress))) " / ")]
+             ^{:key k} [:span
+                        [:span
+                         {:style (when-not (or (nil? state) (has-resources? state {k v}))
+                                   {:color "red"})}
+                         rstr]
+                        trail]))
+         ress)))))
 
 
 (defn price-display [state p]
@@ -131,516 +135,516 @@
 
 (def base-state
   {
-     ;:screen :achievements
-     ;:screen :mission-start
-     ;:screen :game-main 
-     :screen :home
-     :screen-start-mission-tab :bonuses
-     :show-help false
-     :won false
-     :total-time 0
-     :total-runs 0
+   ;:screen :achievements
+   ;:screen :mission-start
+   ;:screen :game-main 
+   :screen :home
+   :screen-start-mission-tab :bonuses
+   :show-help false
+   :won false
+   :total-time 0
+   :total-runs 0
 
-     :hunger-decrease-from-eating 50
-     :base-oxygen-consumption 10
-     :potato-time-to-grow 5
-     :water-extraction-n 10
-     :oxygen-extraction-n 20
+   :hunger-decrease-from-eating 50
+   :base-oxygen-consumption 10
+   :potato-time-to-grow 5
+   :water-extraction-n 10
+   :oxygen-extraction-n 20
 
-     :game
-     {
-      :hunger {:current 0
-               :max 300}
-      :resources {
-                  :oxygen 100
-                  :stone 0
-                  :water 10
-                  :metals 0
-                  :electronics 0
-                  :potatoes 1
-                  :alien-mineral 0
-                  :diamond 0
+   :game
+   {
+    :hunger {:current 0
+             :max 300}
+    :resources {
+                :oxygen 100
+                :stone 0
+                :water 10
+                :metals 0
+                :electronics 0
+                :potatoes 1
+                :alien-mineral 0
+                :diamond 0
+                }
+    :deposits {
+               :stone 0
+               :metals 0
+               }
+    :equipment {
+                :oxygen-tank {
+                              :capacity 100
+                              }}
+
+    :time 0
+    :selected-activity :rest
+    :activities {
+                 :rest
+                 {
+                  :order 0
+                  :label "Rest"
+                  :explain "Wait and consume less oxygen, hunger grows slower"
+                  :effect (fn [state]
+                            {:hunger (fn [decrease] (/ decrease 2))
+                             :oxygen (fn [decrease] (/ decrease 2))
+                             }
+                            )
+                  :available true
+                  } 
+                 :eat
+                 {
+                  :order 1
+                  :label "Eat"
+                  :explain "Reduces hunger, consumes 1 potato"
+                  :effect (fn [state]
+                            (when (pos? (get-in @state [:game :resources :potatoes]))
+                              (swap! state update-in [:game :resources :potatoes] #(- % 1))
+                              (swap! state update-in [:game :hunger :current]
+                                     #(- % (get-in @state [:hunger-decrease-from-eating]))))
+                            )
+                  :condition (fn [state]
+                               (pos? (get-in @state [:game :resources :potatoes])))
+                  :available true
                   }
-      :deposits {
-                 :stone 0
-                 :metals 0
-                 }
-      :equipment {
-                  :oxygen-tank {
-                                :capacity 100
-                                }}
-
-      :time 0
-      :selected-activity :rest
-      :activities {
-                   :rest
-                   {
-                    :order 0
-                    :label "Rest"
-                    :explain "Wait and consume less oxygen, hunger grows slower"
-                    :effect (fn [state]
-                              {:hunger (fn [decrease] (/ decrease 2))
-                               :oxygen (fn [decrease] (/ decrease 2))
-                               }
-                              )
-                    :available true
-                    } 
-                   :eat
-                   {
-                    :order 1
-                    :label "Eat"
-                    :explain "Reduces hunger, consumes 1 potato"
-                    :effect (fn [state]
-                              (when (pos? (get-in @state [:game :resources :potatoes]))
-                                (swap! state update-in [:game :resources :potatoes] #(- % 1))
-                                (swap! state update-in [:game :hunger :current]
-                                       #(- % (get-in @state [:hunger-decrease-from-eating]))))
-                              )
-                    :condition (fn [state]
-                                    (pos? (get-in @state [:game :resources :potatoes])))
-                    :available true
-                    }
-                   :explore
-                   {
-                    :order 2
-                    :label "Explore"
-                    :explain "Go explore surroundings to find resources or more ..."
-                    :effect (fn [state]
-                              (let [finds (exploration-finds state)]
-                                (log-event state
-                                           [:div "Found : "
-                                                (if (pos? (reduce + (map second (:resources finds))))
-                                                  (resource-display (:resources finds))
-                                                  "nothing ...")
-                                                (when (get-in finds [:deposits :metals])
-                                                  " And a metals deposit !")
-                                                (when (get-in finds [:deposits :stone])
-                                                  " And a stone deposit !")
-                                                ])
-                                (swap! state update-in [:game :resources]
+                 :explore
+                 {
+                  :order 2
+                  :label "Explore"
+                  :explain "Go explore surroundings to find resources or more ..."
+                  :effect (fn [state]
+                            (let [finds (exploration-finds state)]
+                              (log-event state
+                                         [:div "Found : "
+                                          (if (pos? (reduce + (map second (:resources finds))))
+                                            (resource-display (:resources finds))
+                                            "nothing ...")
+                                          (when (get-in finds [:deposits :metals])
+                                            " And a metals deposit !")
+                                          (when (get-in finds [:deposits :stone])
+                                            " And a stone deposit !")
+                                          ])
+                              (swap! state update-in [:game :resources]
                                      (fn [rs] (merge-with + rs (:resources finds))))
-                                (swap! state update-in [:game :deposits]
-                                       (fn [ds] (merge-with + ds (:deposits finds))))
+                              (swap! state update-in [:game :deposits]
+                                     (fn [ds] (merge-with + ds (:deposits finds))))
 
-                                {:hunger (fn [factor] (int (* 1.5 factor)))
-                                 :oxygen (fn [factor] (int (* 1.5 factor)))
-                                 }
-                                {})
-                              )
-                    :available true
-                    }
-                   :mine-stone
-                   {
-                    :order 3
-                    :label "Mine stone"
-                    :explain "Mine a stone deposit, high oxygen and hunger impact"
-                    :effect
-                    (fn [state]
-                      (let [jackhammer-bonus
-                            (if (get-in @state [:game :craftable :jackhammer :crafted])
-                              #(* 3 %)
-                              identity)]
-                        (swap! state update-in [:game :resources :stone] #(+ % (jackhammer-bonus 15))))
-                      {:hunger (fn [factor] (int (* 1.7 factor)))
-                       :oxygen (fn [factor] (int (* 1.7 factor)))
-                       })
-                    :condition (fn [state] (pos? (get-in @state [:game :deposits :stone])))
-                    :available true
-                    }
-                   :mine-metals
-                   {
-                    :order 4
-                    :label "Mine metals"
-                    :explain "Mine a metals deposit, high oxygen and hunger impact"
-                    :effect 
-                    (fn [state]
-                      (let [jackhammer-bonus
-                            (if (get-in @state [:game :craftable :jackhammer :crafted])
-                              #(* 3 %)
-                              identity)]
-                        (swap! state update-in [:game :resources :metals] #(+ % (jackhammer-bonus 8))))
-                      {:hunger (fn [factor] (int (* 1.7 factor)))
-                       :oxygen (fn [factor] (int (* 1.7 factor)))
-                       })
-                    :condition (fn [state] (pos? (get-in @state [:game :deposits :metals])))
-                    :available true
-                    }
-                   :plant
-                   {
-                    :order 5
-                    :label "Plant potatoes"
-                    :explain "takes 5 hours to grow, consumes 1 water per hour while growing"
-                    :effect (fn [state]
-                              (swap! state update-in [:game :buildings :farm :plants] 
-                                     (fn [p] (cons {:time-left (get-in @state [:potato-time-to-grow])} p))
-                                     )
-                                {:hunger (fn [factor] (int (* 1.7 factor)))
-                                 :oxygen (fn [factor] (int (* 1.7 factor)))
-                                 })
-                    :condition (fn [state]
-                                      (and
-                                        (get-in @state [:game :buildings :farm :built])
-                                        (< (count (get-in @state [:game :buildings :farm :plants]))
-                                           (get-in @state [:game :buildings :farm :max-plants]))))
-                    :available true
-                    }
-
-                   :harvest
-                   {
-                    :order 6
-                    :label "Harvest potatoes"
-                    :explain "Yummy!"
-                    :effect (fn [state]
-                              (swap! state update-in [:game :resources :potatoes]
-                                     #(+ %
-                                         (count
-                                           (remove
-                                             (fn [plant] (pos? (:time-left plant)))
-                                             (get-in @state [:game :buildings :farm :plants])))))
-                              (swap! state update-in [:game :buildings :farm :plants]
-                                     (fn [p] (filter #(pos? (:time-left %)) p)))
-
-                              (swap! state update-in [:game :achievements :grow-food] inc)
-                                {:hunger (fn [factor] (int (* 1.7 factor)))
-                                 :oxygen (fn [factor] (int (* 1.7 factor)))
-                                 })
-                    :condition (fn [state]
-                                 (some #(not (pos? (:time-left %)))
-                                      (get-in @state [:game :buildings :farm :plants])))
-                    :available true
-                    }
-
-                   :make-electronics
-                   {
-                    :order 7
-                    :label "Make electronics"
-                    :explain "a useful component for many things"
-                    :price (fn [state] {:stone 4 :metals 2})
-                    :effect (fn [state]
-                              (let [price ((get-in @state [:game :activities :make-electronics :price]) state)]
-
-                                (swap! state update-in [:game :achievements :make-electronics] inc)
-                                (swap! state update-in [:game :resources]
-                                     #(merge-with - % price)))
-                                (swap! state update-in [:game :resources :electronics] inc) 
-                                {:oxygen #(/ % 3)})
-                    :condition (fn [state]
-                                 (or-seen
-                                   state
-                                   [:game :activities :make-electronics]
-                                   #(and
-                                      (get-in @state [:game :buildings :craft-bench :built])
-                                      (has-resources? state
-                                                      ((get-in @state [:game :activities :make-electronics :price]) state)))))
-                    :available true
-                    }
-
-                  :extract-water
-                   {
-                    :order 8
-                    :label "Extract water"
-                    :explain "the source of life!"
-                    :effect (fn [state]
-                                (swap! state update-in [:game :resources :water] #(+ % (get-in @state [:water-extraction-n]))) 
-                                {})
-                    :condition (fn [state]
-                                 (get-in @state [:game :buildings :water-extractor :built]))
-                    :available true
-                    }
-
-                  :extract-oxygen
-                   {
-                    :order 9
-                    :label "Extract oxygen"
-                    :explain "the second source of life! Extract oxygen from 5 water"
-                    :effect (fn [state]
-                                (swap! state update-in [:game :resources :water] #(- % 5)) 
-                                (swap! state update-in [:game :resources :oxygen] #(+ % (get-in @state [:oxygen-extraction-n]))) 
-                                {})
-                    :condition (fn [state]
-                                 (and
-                                   (>= (get-in @state [:game :resources :water]) 5)
-                                   (get-in @state [:game :buildings :oxygen-extractor :built])))
-                    :available true
-                    }
-
-                  :analyze-mineral
-                   {
-                    :order 10
-                    :label "Analyze alien mineral"
-                    :explain "Who knows what we'll find!"
-                    :effect (fn [state]
-                                (swap! state update-in [:game :resources :alien-mineral] dec) 
-                                (swap! state update-in [:game :achievements :analyze-mineral] inc)
-                                (let [r (rand)
-                                      finds (condp > r
-                                              0.4 {:resource :diamond :text "An alien diamond!"}
-                                              0.8 {:resource :metals :text "Iron, we can use this"}
-                                              {:resource :stone :text "Oh wait, it's just stone"}
-                                              )]
-                                  (when (= :diamond (:resource find))
-                                    (swap! state update-in [:game :achievements :discover-diamond] inc))
-                                  (swap! state update-in [:game :resources (:resource finds)] inc)
-                                  (log-event state (:text finds))
-                                  )
-                                {})
-                    :condition (fn [state]
-                                 (and
-                                   (get-in @state [:game :buildings :laboratory :built])
-                                   (pos? (get-in @state [:game :resources :alien-mineral]))))
-                    :available true
-                    }
-
-                  :contact-aliens
-                   {
-                    :order -10
-                    :label "Contact the aliens"
-                    :explain "Maybe ask them if they know some nice pubs around"
-                    :effect (fn [state]
-                                {})
-                    :condition (fn [state]
-                                 (and
-                                   (get-in @state [:game :buildings :alien-beacon :built])))
-                    :available true
-                    }
-      }
-      :buildings {
-                  :water-extractor
-                  {
-                   :label "Water extractor"
-                   :price (fn [state] {:stone 30 :metals 10})
-                   :built false
-                   :seen false
-                   :condition (fn [state]
-                                (or-seen state
-                                         [:game :buildings :water-extractor]
-                                         #(has-resources? state {:stone 15 :metals 5})))
-                   :effect (fn [state]
-                             ;(swap! state update-in [:game :resources :water] #(+ % 10))
-                             )
-                   }
-
-                  :oxygen-extractor
-                  {
-                   :label "Oxygen extractor"
-                   :price (fn [state] {:stone 50 :metals 20})
-                   :built false
-                   :condition (fn [state]
-                                (or-seen
-                                  state
-                                  [:game :buildings :oxygen-extractor]
-                                  #(has-resources? state {:stone 15 :metals 5})))
-                   :effect (fn [state]
-                             ;(swap! state update-in [:game :resources :water] #(+ % 10))
-                             )
-                   }
-                  :farm
-                  {
-                   :label "Potato farm"
-                   :price (fn [state] {:stone 10 :metals 2})
-                   :built false
-                   :condition (fn [state]
-                                true
-                                ;(has-resources? state {:stone 15 :metals 2})
-                                )
-                   :effect (fn [state]
-                             (let [
-                                   ;water-needed
-                                   ;(count (filter #(pos? (:time-left %)) (get-in @state [:game :buildings :farm :plants])))
-                                   water-available (get-in @state [:game :resources :water])
-
-                                   update-plants-fn
-                                   (fn [acc p]
-                                     (if (and
-                                           (pos? (:water acc))
-                                           (pos? (:time-left p)))
-                                       {:water (dec (:water acc))
-                                        :plants (cons (update p :time-left dec) (:plants acc)) }
-                                       (update acc
-                                               :plants
-                                               #(cons p %))
-                                       ))
-
-                                   {:keys [water plants]}
-                                   (reduce update-plants-fn
-                                           {:water water-available :plants []}
-                                           (get-in @state [:game :buildings :farm :plants]))
-                                     ]
-                               (swap! state assoc-in [:game :buildings :farm :plants] plants)
-                               (swap! state assoc-in [:game :resources :water] water)
-                             ))
-                   :max-plants 10
-                   :plants []
-                   }
-                  :craft-bench
-                  {
-                   :label "Craft bench"
-                   :price (fn [state] {:stone 10 :metals 2})
-                   :built false
-                   :seen false
-                   :condition (fn [state]
-                                (or-seen state
-                                         [:game :buildings :craft-bench]
-                                         #(has-resources? state {:stone 5 :metals 1})))
-                   :effect (fn [state]
-                             ;(swap! state update-in [:game :resources :water] #(+ % 10))
-                             )
-                   }
-                  :laboratory
-                  {
-                   :label "Laboratory"
-                   :price (fn [state] {:metals 20 :electronics 10 :stone 50})
-                   :built false
-                   :condition (fn [state]
-                                (or-seen
-                                  state
-                                  [:game :buildings :laboratory]
-                                  #(has-resources? state {:metals 10 :electronics 5 :stone 10})))
-                   :effect (fn [state])
-                   }
-                  :alien-beacon
-                  {
-                   :label "Alien beacon"
-                   :price (fn [state] {:metals 100 :electronics 20 :stone 200})
-                   :built false
-                   :condition (fn [state]
-                                (comment (or-seen
-                                  state
-                                  [:game :buildings :alien-beacon]
-                                  #(and
-                                     (get-in @state [:game :craftable :alien-crystal :crafted])
-                                     (has-resources? state {:metals 10 :electronics 10 :stone 30}))))
-                                (get-in @state [:game :craftable :alien-crystal :crafted])
-                                )
-                   :effect (fn [state]
-                             (swap! state assoc :won true))
-                   }
+                              {:hunger (fn [factor] (int (* 1.5 factor)))
+                               :oxygen (fn [factor] (int (* 1.5 factor)))
+                               }
+                              {})
+                            )
+                  :available true
                   }
-      :craftable
-      {
-       :jackhammer {
-                    :label "Jackhammer"
-                    :explain "Increase mining yield"
-                    :price (fn [state] {:metals 10})
-                    :crafted false
-                    }
-       :metal-detector {
-                    :label "Metal detector"
-                    :explain "Increase findings when exploring"
-                    :price (fn [state] {:metals 10 :electronics 4})
-                    :crafted false
-                    }
-       :alien-crystal {
-                       :label "Alien crystal"
-                       :explain "A glowing crystal with untold power"
-                       :price (fn [state] {:diamond 4})
-                       :crafted false
+                 :mine-stone
+                 {
+                  :order 3
+                  :label "Mine stone"
+                  :explain "Mine a stone deposit, high oxygen and hunger impact"
+                  :effect
+                  (fn [state]
+                    (let [jackhammer-bonus
+                          (if (get-in @state [:game :craftable :jackhammer :crafted])
+                            #(* 3 %)
+                            identity)]
+                      (swap! state update-in [:game :resources :stone] #(+ % (jackhammer-bonus 15))))
+                    {:hunger (fn [factor] (int (* 1.7 factor)))
+                     :oxygen (fn [factor] (int (* 1.7 factor)))
+                     })
+                  :condition (fn [state] (pos? (get-in @state [:game :deposits :stone])))
+                  :available true
+                  }
+                 :mine-metals
+                 {
+                  :order 4
+                  :label "Mine metals"
+                  :explain "Mine a metals deposit, high oxygen and hunger impact"
+                  :effect 
+                  (fn [state]
+                    (let [jackhammer-bonus
+                          (if (get-in @state [:game :craftable :jackhammer :crafted])
+                            #(* 3 %)
+                            identity)]
+                      (swap! state update-in [:game :resources :metals] #(+ % (jackhammer-bonus 8))))
+                    {:hunger (fn [factor] (int (* 1.7 factor)))
+                     :oxygen (fn [factor] (int (* 1.7 factor)))
+                     })
+                  :condition (fn [state] (pos? (get-in @state [:game :deposits :metals])))
+                  :available true
+                  }
+                 :plant
+                 {
+                  :order 5
+                  :label "Plant potatoes"
+                  :explain "takes 5 hours to grow, consumes 1 water per hour while growing"
+                  :effect (fn [state]
+                            (swap! state update-in [:game :buildings :farm :plants] 
+                                   (fn [p] (cons {:time-left (get-in @state [:potato-time-to-grow])} p))
+                                   )
+                            {:hunger (fn [factor] (int (* 1.7 factor)))
+                             :oxygen (fn [factor] (int (* 1.7 factor)))
+                             })
+                  :condition (fn [state]
+                               (and
+                                 (get-in @state [:game :buildings :farm :built])
+                                 (< (count (get-in @state [:game :buildings :farm :plants]))
+                                    (get-in @state [:game :buildings :farm :max-plants]))))
+                  :available true
+                  }
+
+:harvest
+{
+ :order 6
+ :label "Harvest potatoes"
+ :explain "Yummy!"
+ :effect (fn [state]
+           (swap! state update-in [:game :resources :potatoes]
+                  #(+ %
+                      (count
+                        (remove
+                          (fn [plant] (pos? (:time-left plant)))
+                          (get-in @state [:game :buildings :farm :plants])))))
+           (swap! state update-in [:game :buildings :farm :plants]
+                  (fn [p] (filter #(pos? (:time-left %)) p)))
+
+           (swap! state update-in [:game :achievements :grow-food] inc)
+           {:hunger (fn [factor] (int (* 1.7 factor)))
+            :oxygen (fn [factor] (int (* 1.7 factor)))
+            })
+ :condition (fn [state]
+              (some #(not (pos? (:time-left %)))
+                    (get-in @state [:game :buildings :farm :plants])))
+ :available true
+ }
+
+:make-electronics
+{
+ :order 7
+ :label "Make electronics"
+ :explain "a useful component for many things"
+ :price (fn [state] {:stone 4 :metals 2})
+ :effect (fn [state]
+           (let [price ((get-in @state [:game :activities :make-electronics :price]) state)]
+
+             (swap! state update-in [:game :achievements :make-electronics] inc)
+             (swap! state update-in [:game :resources]
+                    #(merge-with - % price)))
+           (swap! state update-in [:game :resources :electronics] inc) 
+           {:oxygen #(/ % 3)})
+ :condition (fn [state]
+              (or-seen
+                state
+                [:game :activities :make-electronics]
+                #(and
+                   (get-in @state [:game :buildings :craft-bench :built])
+                   (has-resources? state
+                                   ((get-in @state [:game :activities :make-electronics :price]) state)))))
+ :available true
+ }
+
+:extract-water
+{
+ :order 8
+ :label "Extract water"
+ :explain "the source of life!"
+ :effect (fn [state]
+           (swap! state update-in [:game :resources :water] #(+ % (get-in @state [:water-extraction-n]))) 
+           {})
+ :condition (fn [state]
+              (get-in @state [:game :buildings :water-extractor :built]))
+ :available true
+ }
+
+:extract-oxygen
+{
+ :order 9
+ :label "Extract oxygen"
+ :explain "the second source of life! Extract oxygen from 5 water"
+ :effect (fn [state]
+           (swap! state update-in [:game :resources :water] #(- % 5)) 
+           (swap! state update-in [:game :resources :oxygen] #(+ % (get-in @state [:oxygen-extraction-n]))) 
+           {})
+ :condition (fn [state]
+              (and
+                (>= (get-in @state [:game :resources :water]) 5)
+                (get-in @state [:game :buildings :oxygen-extractor :built])))
+ :available true
+ }
+
+:analyze-mineral
+{
+ :order 10
+ :label "Analyze alien mineral"
+ :explain "Who knows what we'll find!"
+ :effect (fn [state]
+           (swap! state update-in [:game :resources :alien-mineral] dec) 
+           (swap! state update-in [:game :achievements :analyze-mineral] inc)
+           (let [r (rand)
+                 finds (condp > r
+                         0.4 {:resource :diamond :text "An alien diamond!"}
+                         0.8 {:resource :metals :text "Iron, we can use this"}
+                         {:resource :stone :text "Oh wait, it's just stone"}
+                         )]
+             (when (= :diamond (:resource find))
+               (swap! state update-in [:game :achievements :discover-diamond] inc))
+             (swap! state update-in [:game :resources (:resource finds)] inc)
+             (log-event state (:text finds))
+             )
+           {})
+ :condition (fn [state]
+              (and
+                (get-in @state [:game :buildings :laboratory :built])
+                (pos? (get-in @state [:game :resources :alien-mineral]))))
+ :available true
+ }
+
+:contact-aliens
+{
+ :order -10
+ :label "Contact the aliens"
+ :explain "Maybe ask them if they know some nice pubs around"
+ :effect (fn [state]
+           {})
+ :condition (fn [state]
+              (and
+                (get-in @state [:game :buildings :alien-beacon :built])))
+ :available true
+ }
+}
+:buildings {
+            :water-extractor
+            {
+             :label "Water extractor"
+             :price (fn [state] {:stone 30 :metals 10})
+             :built false
+             :seen false
+             :condition (fn [state]
+                          (or-seen state
+                                   [:game :buildings :water-extractor]
+                                   #(has-resources? state {:stone 15 :metals 5})))
+             :effect (fn [state]
+                       ;(swap! state update-in [:game :resources :water] #(+ % 10))
+                       )
+             }
+
+            :oxygen-extractor
+            {
+             :label "Oxygen extractor"
+             :price (fn [state] {:stone 50 :metals 20})
+             :built false
+             :condition (fn [state]
+                          (or-seen
+                            state
+                            [:game :buildings :oxygen-extractor]
+                            #(has-resources? state {:stone 15 :metals 5})))
+             :effect (fn [state]
+                       ;(swap! state update-in [:game :resources :water] #(+ % 10))
+                       )
+             }
+            :farm
+            {
+             :label "Potato farm"
+             :price (fn [state] {:stone 10 :metals 2})
+             :built false
+             :condition (fn [state]
+                          true
+                          ;(has-resources? state {:stone 15 :metals 2})
+                          )
+             :effect (fn [state]
+                       (let [
+                             ;water-needed
+                             ;(count (filter #(pos? (:time-left %)) (get-in @state [:game :buildings :farm :plants])))
+                             water-available (get-in @state [:game :resources :water])
+
+                             update-plants-fn
+                             (fn [acc p]
+                               (if (and
+                                     (pos? (:water acc))
+                                     (pos? (:time-left p)))
+                                 {:water (dec (:water acc))
+                                  :plants (cons (update p :time-left dec) (:plants acc)) }
+                                 (update acc
+                                         :plants
+                                         #(cons p %))
+                                 ))
+
+                             {:keys [water plants]}
+                             (reduce update-plants-fn
+                                     {:water water-available :plants []}
+                                     (get-in @state [:game :buildings :farm :plants]))
+                             ]
+                         (swap! state assoc-in [:game :buildings :farm :plants] plants)
+                         (swap! state assoc-in [:game :resources :water] water)
+                         ))
+             :max-plants 10
+             :plants []
+             }
+            :craft-bench
+            {
+             :label "Craft bench"
+             :price (fn [state] {:stone 10 :metals 2})
+             :built false
+             :seen false
+             :condition (fn [state]
+                          (or-seen state
+                                   [:game :buildings :craft-bench]
+                                   #(has-resources? state {:stone 5 :metals 1})))
+             :effect (fn [state]
+                       ;(swap! state update-in [:game :resources :water] #(+ % 10))
+                       )
+             }
+            :laboratory
+            {
+             :label "Laboratory"
+             :price (fn [state] {:metals 20 :electronics 10 :stone 50})
+             :built false
+             :condition (fn [state]
+                          (or-seen
+                            state
+                            [:game :buildings :laboratory]
+                            #(has-resources? state {:metals 10 :electronics 5 :stone 10})))
+             :effect (fn [state])
+             }
+            :alien-beacon
+            {
+             :label "Alien beacon"
+             :price (fn [state] {:metals 100 :electronics 20 :stone 200})
+             :built false
+             :condition (fn [state]
+                          (comment (or-seen
+                                     state
+                                     [:game :buildings :alien-beacon]
+                                     #(and
+                                        (get-in @state [:game :craftable :alien-crystal :crafted])
+                                        (has-resources? state {:metals 10 :electronics 10 :stone 30}))))
+                          (get-in @state [:game :craftable :alien-crystal :crafted])
+                          )
+             :effect (fn [state]
+                       (swap! state assoc :won true))
+             }
+}
+:craftable
+{
+ :jackhammer {
+              :label "Jackhammer"
+              :explain "Increase mining yield"
+              :price (fn [state] {:metals 10})
+              :crafted false
+              }
+ :metal-detector {
+                  :label "Metal detector"
+                  :explain "Increase findings when exploring"
+                  :price (fn [state] {:metals 10 :electronics 4})
+                  :crafted false
+                  }
+ :alien-crystal {
+                 :label "Alien crystal"
+                 :explain "A glowing crystal with untold power"
+                 :price (fn [state] {:diamond 4})
+                 :crafted false
                  }
-            }
-      :journal []
-      :achievements {
-                     :grow-food 0
-                     :analyze-mineral 0
-                     :make-electronics 0
-                     :find-alien-mineral 0
-                     :discover-diamond 0
-                     }
-      }
-     :coins 0
-     :bonuses
-     {
-      :potatoes-qty {
-                     :order 0
-                     :label "King of the fries"
-                     :description "More potatoes"
-                     :level 0
-                     :level-max 100
-                     :next-price (bonus-price-double-every-level-fn 20)
-                     :bonus-value (fn [level] (* level 2))
-                     :bonus-apply (fn [state bvalue]
-                                    (swap! state
-                                           update-in
-                                           [:game :resources :potatoes]
-                                           #(+ % bvalue)))}
+ }
+:journal []
+:achievements {
+               :grow-food 0
+               :analyze-mineral 0
+               :make-electronics 0
+               :find-alien-mineral 0
+               :discover-diamond 0
+               }
+}
+:coins 0
+:bonuses
+{
+ :potatoes-qty {
+                :order 0
+                :label "King of the fries"
+                :description "More potatoes"
+                :level 0
+                :level-max 100
+                :next-price (bonus-price-double-every-level-fn 20)
+                :bonus-value (fn [level] (* level 2))
+                :bonus-apply (fn [state bvalue]
+                               (swap! state
+                                      update-in
+                                      [:game :resources :potatoes]
+                                      #(+ % bvalue)))}
 
 
 
-      :water-qty  {
-                   :order 1
-                   :label "Supersize cup"
-                   :description "More water"
-                   :level 0
-                   :level-max 100
-                   :next-price (bonus-price-double-every-level-fn 30)
-                   :bonus-value (fn [level] (* level 10))
-                   :bonus-apply (fn [state bvalue]
-                                  (swap! state
-                                         update-in
-                                         [:game :resources :water]
-                                         #(+ % bvalue)))
-                   }
+ :water-qty  {
+              :order 1
+              :label "Supersize cup"
+              :description "More water"
+              :level 0
+              :level-max 100
+              :next-price (bonus-price-double-every-level-fn 30)
+              :bonus-value (fn [level] (* level 10))
+              :bonus-apply (fn [state bvalue]
+                             (swap! state
+                                    update-in
+                                    [:game :resources :water]
+                                    #(+ % bvalue)))
+              }
 
-      :oxygen-qty  {
-                    :order 2
-                   :label "A can of fresh air"
-                   :description "Bigger oxygen tank"
-                   :level 0
-                   :level-max 20
-                   :next-price (bonus-price-double-every-level-fn 25)
-                   :bonus-value (fn [level] (* level 10))
-                   :bonus-apply (fn [state bvalue]
-                                  (swap! state
-                                         update-in
-                                         [:game :equipment :oxygen-tank :capacity]
-                                         #(+ % bvalue)))
-                   }
+ :oxygen-qty  {
+               :order 2
+               :label "A can of fresh air"
+               :description "Bigger oxygen tank"
+               :level 0
+               :level-max 20
+               :next-price (bonus-price-double-every-level-fn 25)
+               :bonus-value (fn [level] (* level 10))
+               :bonus-apply (fn [state bvalue]
+                              (swap! state
+                                     update-in
+                                     [:game :equipment :oxygen-tank :capacity]
+                                     #(+ % bvalue)))
+               }
 
-      :oxygen-consumption-decrease  {
-                    :order 6
-                   :label "Yoga"
-                   :description "Decrease oxygen consumption"
-                   :level 0
-                   :level-max 9
-                   :next-price (bonus-price-double-every-level-fn 25)
-                   :bonus-value (fn [level] (* level 1))
-                   :bonus-apply (fn [state bvalue]
-                                  (swap! state
-                                         assoc-in
-                                         [:base-oxygen-consumption]
-                                         (- (:base-oxygen-consumption base-state) bvalue)))
-                   }
+ :oxygen-consumption-decrease  {
+                                :order 6
+                                :label "Yoga"
+                                :description "Decrease oxygen consumption"
+                                :level 0
+                                :level-max 9
+                                :next-price (bonus-price-double-every-level-fn 25)
+                                :bonus-value (fn [level] (* level 1))
+                                :bonus-apply (fn [state bvalue]
+                                               (swap! state
+                                                      assoc-in
+                                                      [:base-oxygen-consumption]
+                                                      (- (:base-oxygen-consumption base-state) bvalue)))
+                                }
 
-      :better-potatoes  {
+ :better-potatoes  {
                     :order 7
-                   :label "Ketchup"
-                   :description "Improves potatoes nutritional value"
-                   :level 0
-                   :level-max 9
-                   :next-price (bonus-price-double-every-level-fn 25)
-                   :bonus-value (fn [level] (* level 10))
-                   :bonus-apply (fn [state bvalue]
-                                  (swap! state
-                                         assoc-in
-                                         [:hunger-decrease-from-eating]
-                                         (+ (:hunger-decrease-from-eating base-state) bvalue)))
-                   }
+                    :label "Ketchup"
+                    :description "Improves potatoes nutritional value"
+                    :level 0
+                    :level-max 9
+                    :next-price (bonus-price-double-every-level-fn 25)
+                    :bonus-value (fn [level] (* level 10))
+                    :bonus-apply (fn [state bvalue]
+                                   (swap! state
+                                          assoc-in
+                                          [:hunger-decrease-from-eating]
+                                          (+ (:hunger-decrease-from-eating base-state) bvalue)))
+                    }
 
-      :jackhammer  {
-                    :order 4
-                   :label "Diamond pickaxe"
-                   :description "Jackhammer at start"
-                   :level 0
-                   :level-max 1
-                   :next-price (bonus-price-double-every-level-fn 300)
-                   :bonus-value (fn [level] (* level 1))
-                   :bonus-apply (fn [state bvalue]
-                                  (swap! state
-                                         assoc-in
-                                         [:game :craftable :jackhammer :crafted] (= bvalue 1)))
-                   }
+ :jackhammer  {
+               :order 4
+               :label "Diamond pickaxe"
+               :description "Jackhammer at start"
+               :level 0
+               :level-max 1
+               :next-price (bonus-price-double-every-level-fn 300)
+               :bonus-value (fn [level] (* level 1))
+               :bonus-apply (fn [state bvalue]
+                              (swap! state
+                                     assoc-in
+                                     [:game :craftable :jackhammer :crafted] (= bvalue 1)))
+               }
 
-      :metal-detector  {
-                    :order 3
+ :metal-detector  {
+                   :order 3
                    :label "Oh shiny!"
                    :description "Metal detector at start"
                    :level 0
@@ -653,138 +657,138 @@
                                          [:game :craftable :metal-detector :crafted] (= bvalue 1)))
                    }
 
-      :stone-deposit  {
-                    :order 8
-                   :label "Carry me to the quarry"
-                   :description "Land near a discovered stone deposit"
-                   :level 0
-                   :level-max 1
-                   :next-price (bonus-price-double-every-level-fn 20)
-                   :bonus-value (fn [level] (* level 1))
-                   :bonus-apply (fn [state bvalue]
-                                  (swap! state
-                                         assoc-in
-                                         [:game :deposits :stone]
-                                         bvalue))
-                   }
+:stone-deposit  {
+                 :order 8
+                 :label "Carry me to the quarry"
+                 :description "Land near a discovered stone deposit"
+                 :level 0
+                 :level-max 1
+                 :next-price (bonus-price-double-every-level-fn 20)
+                 :bonus-value (fn [level] (* level 1))
+                 :bonus-apply (fn [state bvalue]
+                                (swap! state
+                                       assoc-in
+                                       [:game :deposits :stone]
+                                       bvalue))
+                 }
 
-      :metal-deposit  {
-                    :order 9
-                   :label "Heigh-Ho Heigh-Ho!"
-                   :description "Land near a discovered metal deposit"
-                   :level 0
-                   :level-max 1
-                   :next-price (bonus-price-double-every-level-fn 40)
-                   :bonus-value (fn [level] (* level 1))
-                   :bonus-apply (fn [state bvalue]
-                                  (swap! state
-                                         assoc-in
-                                         [:game :deposits :metals]
-                                         bvalue))
-                   }
+:metal-deposit  {
+                 :order 9
+                 :label "Heigh-Ho Heigh-Ho!"
+                 :description "Land near a discovered metal deposit"
+                 :level 0
+                 :level-max 1
+                 :next-price (bonus-price-double-every-level-fn 40)
+                 :bonus-value (fn [level] (* level 1))
+                 :bonus-apply (fn [state bvalue]
+                                (swap! state
+                                       assoc-in
+                                       [:game :deposits :metals]
+                                       bvalue))
+                 }
 
-      }
-      :achievements
-      {
-       :die-once
-       {
-        :order -1
-        :done false
-        :label "Die once on the planet"
-        :reward 50
-        :condition (fn [state] (pos? (get-in @state [:total-runs])))
-        }
-       :survive-ten-hours
-       {
-        :order 0
-        :done false
-        :label "Survive 10 hours"
-        :reward 20
-        :condition (fn [state] (> (get-in @state [:game :time]) 9))
-        }
-       :grow-food
-       {
-        :order 1
-        :done false
-        :label "Grow and harvest food on the planet"
-        :reward 100
-        :condition (fn [state] (pos? (get-in @state [:game :achievements :grow-food])))
-        }
-       :find-stone-depo
-       {
-        :order 1.2
-        :done false
-        :label "Find a stone deposit"
-        :reward 70
-        :condition (fn [state] (pos? (get-in @state [:game :deposits :stone])))
-        }
-       :find-metals-depo
-       {
-        :order 1.4
-        :done false
-        :label "Find a metals deposit"
-        :reward 140
-        :condition (fn [state] (pos? (get-in @state [:game :deposits :metals])))
-        }
-       :survive-twenty-hours
-       {
-        :order 2
-        :done false
-        :label "Survive 20 hours"
-        :reward 50
-        :condition (fn [state] (> (get-in @state [:game :time]) 19))
-        }
-       :analyze-mineral
-       {
-        :order 3
-        :done false
-        :label "Analyze alien mineral"
-        :reward 200
-        :condition (fn [state] (pos? (get-in @state [:game :achievements :analyze-mineral])))
-        }
-       :die-five-times
-       {
-        :order 3.5
-        :done false
-        :label "Die five times on the planet"
-        :reward 300
-        :condition (fn [state] (> (get-in @state [:total-runs]) 4))
-        }
-       :survive-fifty-hours
-       {
-        :order 4
-        :done false
-        :label "Survive 50 hours"
-        :reward 200
-        :condition (fn [state] (> (get-in @state [:game :time]) 49))
-        }
-       :make-electronics
-       {
-        :order 5
-        :done false
-        :label "Make electronics"
-        :reward 500
-        :condition (fn [state] (pos? (get-in @state [:game :achievements :make-electronics])))
-        }
-       :find-alien-mineral
-       {
-        :order 6
-        :done false
-        :label "Find alien mineral"
-        :reward 700
-        :condition (fn [state] (pos? (get-in @state [:game :achievements :find-alien-mineral])))
-        }
-       :discover-diamond
-       {
-        :order 7
-        :done false
-        :label "Discover diamond"
-        :reward 2000
-        :condition (fn [state] (pos? (get-in @state [:game :achievements :discover-diamond])))
-        }
-       }
-     }
-  )
+}
+:achievements
+{
+ :die-once
+ {
+  :order -1
+  :done false
+  :label "Die once on the planet"
+  :reward 50
+  :condition (fn [state] (pos? (get-in @state [:total-runs])))
+  }
+ :survive-ten-hours
+ {
+  :order 0
+  :done false
+  :label "Survive 10 hours"
+  :reward 20
+  :condition (fn [state] (> (get-in @state [:game :time]) 9))
+  }
+ :grow-food
+ {
+  :order 1
+  :done false
+  :label "Grow and harvest food on the planet"
+  :reward 100
+  :condition (fn [state] (pos? (get-in @state [:game :achievements :grow-food])))
+  }
+ :find-stone-depo
+ {
+  :order 1.2
+  :done false
+  :label "Find a stone deposit"
+  :reward 70
+  :condition (fn [state] (pos? (get-in @state [:game :deposits :stone])))
+  }
+ :find-metals-depo
+ {
+  :order 1.4
+  :done false
+  :label "Find a metals deposit"
+  :reward 140
+  :condition (fn [state] (pos? (get-in @state [:game :deposits :metals])))
+  }
+ :survive-twenty-hours
+ {
+  :order 2
+  :done false
+  :label "Survive 20 hours"
+  :reward 50
+  :condition (fn [state] (> (get-in @state [:game :time]) 19))
+  }
+ :analyze-mineral
+ {
+  :order 3
+  :done false
+  :label "Analyze alien mineral"
+  :reward 200
+  :condition (fn [state] (pos? (get-in @state [:game :achievements :analyze-mineral])))
+  }
+ :die-five-times
+ {
+  :order 3.5
+  :done false
+  :label "Die five times on the planet"
+  :reward 300
+  :condition (fn [state] (> (get-in @state [:total-runs]) 4))
+  }
+ :survive-fifty-hours
+ {
+  :order 4
+  :done false
+  :label "Survive 50 hours"
+  :reward 200
+  :condition (fn [state] (> (get-in @state [:game :time]) 49))
+  }
+ :make-electronics
+ {
+  :order 5
+  :done false
+  :label "Make electronics"
+  :reward 500
+  :condition (fn [state] (pos? (get-in @state [:game :achievements :make-electronics])))
+  }
+ :find-alien-mineral
+ {
+  :order 6
+  :done false
+  :label "Find alien mineral"
+  :reward 700
+  :condition (fn [state] (pos? (get-in @state [:game :achievements :find-alien-mineral])))
+  }
+ :discover-diamond
+ {
+  :order 7
+  :done false
+  :label "Discover diamond"
+  :reward 2000
+  :condition (fn [state] (pos? (get-in @state [:game :achievements :discover-diamond])))
+  }
+ }
+}
+)
 
 (defonce state
   (r/atom base-state))
@@ -881,8 +885,8 @@
     [:li "The achievements list in the mission preparation screen can help guide you on what to do"]
     [:li "You'll need to die in order to upgrade"]
     [:li "It will take you multiple run to progress, don't give up!"]
-    [:li "Alien minerals can be analyzed in the laboratory building"]
-    ] 
+    [:li "Alien minerals can be analyzed in the laboratory building (cost : metals 20 / electronics 10 / stone 50)"]
+    ]
    ])
 
 (defn show-bonus [k b]
@@ -910,16 +914,16 @@
     [:tbody
      (doall
        (for [rows (partition 3 3 [] (sort-by #(:order (second %)) (seq (:bonuses @state))))]
-      ^{:key (reduce str "" (map first rows))}
-      [:tr
-       (doall
-         (for [[k b] rows]
-         ^{:key (name k)}
-         [:td
-          (show-bonus k b)
-          ]
-         ))]  
-       ))
+         ^{:key (reduce str "" (map first rows))}
+         [:tr
+          (doall
+            (for [[k b] rows]
+              ^{:key (name k)}
+              [:td
+               (show-bonus k b)
+               ]
+              ))]  
+         ))
      ]
     ]
    ])
@@ -928,9 +932,9 @@
   [:div {:style {:text-align "center"}}
    ;[:span "Starting a mission with: "]
    (comment [:ul
-    (for [resource (remove #(zero? (second %)) (get-in @state [:game :resources]))]
-      ^{:key (name (first resource))} [:li (str (name (first resource)) " : " (second resource))]
-      )])
+             (for [resource (remove #(zero? (second %)) (get-in @state [:game :resources]))]
+               ^{:key (name (first resource))} [:li (str (name (first resource)) " : " (second resource))]
+               )])
    [:h2 "Mission preparation"]
    [:hr]
    [:button {:on-click #(start-run) :class "start-run-button button big-button"} "🚀 Blast off! 🚀"]
@@ -965,14 +969,14 @@
    ])
 
 (defn oxygen-bar-filled-percent []
- (int (* 100
-         (/ (get-in @state [:game :resources :oxygen])
-            (get-in @state [:game :equipment :oxygen-tank :capacity])))))
+  (int (* 100
+          (/ (get-in @state [:game :resources :oxygen])
+             (get-in @state [:game :equipment :oxygen-tank :capacity])))))
 
 (defn hunger-bar-filled-percent []
- (int (* 100
-         (/ (get-in @state [:game :hunger :current])
-            (get-in @state [:game :hunger :max])))))
+  (int (* 100
+          (/ (get-in @state [:game :hunger :current])
+             (get-in @state [:game :hunger :max])))))
 
 (defn time-passed-human-readable []
   (let [h (get-in @state [:game :time])]
@@ -983,12 +987,10 @@
   (let [oxygen-prc (oxygen-bar-filled-percent)
         hunger-prc (hunger-bar-filled-percent)
         time-passed (time-passed-human-readable)
-        ;show-progress (not (dead? state))
         ]
     [:div {:class "top-bar-stats"}
      [:div {:class "time"}
-      [:span (str "Time : " time-passed)]
-      ;(when show-progress [:div {:class "progress"}])
+      (str "Time : " time-passed)
       ]
      [:div
       [:div {:class "bar-container oxygen-bar-container"}
@@ -1026,13 +1028,13 @@
                from-achievements
                )
      :description (remove nil? [
-                   [:div [:strong from-time] " from time spent on the planet"]
-                   (when (pos? from-diamonds) [:div [:strong from-diamonds] " from diamonds"])
-                   (map
-                     (fn [[_ a]] [:div [:strong (:reward a)] " from achievement '" [:strong (:label a)] "'"])
-                     achievs)
-                   ;(when (pos? from-achievements) (str from-achievements " from achievements"))
-                   ])}))
+                                [:div [:strong from-time] " from time spent on the planet"]
+                                (when (pos? from-diamonds) [:div [:strong from-diamonds] " from diamonds"])
+                                (map
+                                  (fn [[_ a]] [:div [:strong (:reward a)] " from achievement '" [:strong (:label a)] "'"])
+                                  achievs)
+                                ;(when (pos? from-achievements) (str from-achievements " from achievements"))
+                                ])}))
 
 (defn won-screen []
   [:div {:style {:text-align "center"}}
@@ -1156,8 +1158,8 @@
   [:div {:class (str "block craftable"
                      (when (:crafted c) " crafted has-done")
                      (if (has-resources? state ((:price c) state))
-                         " can-craft can-do"
-                         " cant-do") )
+                       " can-craft can-do"
+                       " cant-do") )
          :on-click (when-not (:crafted c) #(craft-item k))}
    [:div (:label c)]
    [:div {:class "explain"} (:explain c)]
@@ -1197,18 +1199,18 @@
 (defn resources []
   [:div {:style {:min-height "100px"}}
    [:table {:class "resources"}
-   [:tbody
-    (for [rrows (partition 4 4 [] (filter (fn [[k v]] (pos? v)) (get-in @state [:game :resources])))]
-      ^{:key (reduce str "" (map first rrows))}
-      [:tr
-       (for [[k r] rrows]
-         ^{:key (name k)}
-         [:td
-          [:span {:class "rname"} (name k)]
-          [:span {:class "rqty"} r]
-          ]
-         )])]
-   ]])
+    [:tbody
+     (for [rrows (partition 4 4 [] (filter (fn [[k v]] (pos? v)) (get-in @state [:game :resources])))]
+       ^{:key (reduce str "" (map first rrows))}
+       [:tr
+        (for [[k r] rrows]
+          ^{:key (name k)}
+          [:td
+           [:span {:class "rname"} (name k)]
+           [:span {:class "rqty"} r]
+           ]
+          )])]
+    ]])
 
 (defn game-main-screen []
   (let [is-dead (dead? state)]

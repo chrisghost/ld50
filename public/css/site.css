@@ -32,32 +32,11 @@ a:hover {
   text-decoration: underline;
 }
 
-.black-bkg {
-  /*
-  background-color: black;
-  color: white;
-  */
-}
-
 .game-main-screen {
   padding: 15px;
-  /*
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  bottom:0;
-  */
 }
 
 .top-bar-stats {
-  /*
-  width: 100%;
-  max-width: 1200px;
-  top:0;
-  left:0;
-  right:0;
-  */
   height: 45px;
   background-color: grey;
   clear: both;
@@ -73,8 +52,8 @@ a:hover {
 }
 
 .top-bar-stats .time {
-  padding-left : 10px;
-  line-height: 30px;
+  padding-left : 40px;
+  line-height: 40px;
   color: white;
 }
 
